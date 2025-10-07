@@ -176,13 +176,14 @@ def draw_masked_object(
             row_cuts.append(tile)
         grid_of_cuts.append(row_cuts)
     
-    grid_of_cuts = np.array(grid_of_cuts, dtype=object)
+    # Note: grid_of_cuts is kept as nested lists (not converted to numpy array)
+    # because tiles can have inconsistent sizes at image borders
 
     # Trouver les tuiles (tiles) contenant au moins un pixel noir
     cut_black_indices = []
     for i in range(n_cuts_vertical):
         for j in range(n_cuts_horizontal):
-            if np.sum(grid_of_cuts[i, j] < black_pixel_threshold) > 0:
+            if np.sum(grid_of_cuts[i][j] < black_pixel_threshold) > 0:
                 cut_black_indices.append((i, j))
     
     cut_black_indices = np.array(cut_black_indices)
