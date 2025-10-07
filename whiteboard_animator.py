@@ -173,19 +173,17 @@ def draw_masked_object(
             x_start = j * variables.split_len
             x_end = min(x_start + variables.split_len, variables.resize_wd)
             tile = img_thresh_copy[y_start:y_end, x_start:x_end]
-            print(f"DEBUG: Building grid [{i},{j}], tile shape: {tile.shape}")
             row_cuts.append(tile)
         grid_of_cuts.append(row_cuts)
     
-    print(f"DEBUG: grid_of_cuts built, converting to np.array with dtype=object")
-    grid_of_cuts = np.array(grid_of_cuts, dtype=object)
-    print(f"DEBUG: grid_of_cuts shape: {grid_of_cuts.shape}")
+    # Note: grid_of_cuts is kept as nested lists (not converted to numpy array)
+    # because tiles can have inconsistent sizes at image borders
 
     # Trouver les tuiles (tiles) contenant au moins un pixel noir
     cut_black_indices = []
     for i in range(n_cuts_vertical):
         for j in range(n_cuts_horizontal):
-            if np.sum(grid_of_cuts[i, j] < black_pixel_threshold) > 0:
+            if np.sum(grid_of_cuts[i][j] < black_pixel_threshold) > 0:
                 cut_black_indices.append((i, j))
     
     cut_black_indices = np.array(cut_black_indices)
@@ -201,7 +199,6 @@ def draw_masked_object(
         
         # Récupérer la tuile à dessiner (peut être de taille variable)
         tile_to_draw = grid_of_cuts[selected_ind_val[0]][selected_ind_val[1]]
-        print(f"DEBUG: tile_to_draw type={type(tile_to_draw)}, shape={tile_to_draw.shape if hasattr(tile_to_draw, 'shape') else 'N/A'}")
         tile_ht, tile_wd = tile_to_draw.shape # <-- On récupère la taille réelle
         
         # Calculer les coordonnées de la tuile sélectionnée EN UTILISANT LA TAILLE RÉELLE
@@ -212,7 +209,6 @@ def draw_masked_object(
 
         # Créer une image BGR à partir de la tuile en niveaux de gris
         temp_drawing = np.zeros((tile_ht, tile_wd, 3), dtype=np.uint8)
-        print(f"DEBUG: temp_drawing shape={temp_drawing.shape}, temp_drawing[:,:,0] shape={temp_drawing[:,:,0].shape}")
         temp_drawing[:, :, 0] = tile_to_draw
         temp_drawing[:, :, 1] = tile_to_draw
         temp_drawing[:, :, 2] = tile_to_draw
