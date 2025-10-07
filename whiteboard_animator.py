@@ -159,6 +159,13 @@ def draw_masked_object(
     selected_ind_val = None
     selected_ind = 0
     
+    # Initialize animation data if JSON export is enabled
+    if variables.export_json:
+        variables.animation_data = {
+            "drawing_sequence": [],
+            "frames_written": []
+        }
+    
     # Calculer le nombre de coupes pour la grille
     n_cuts_vertical = int(math.ceil(variables.resize_ht / variables.split_len))
     n_cuts_horizontal = int(math.ceil(variables.resize_wd / variables.split_len))
@@ -246,6 +253,27 @@ def draw_masked_object(
         counter += 1
         if counter % skip_rate == 0 or len(cut_black_indices) == 0:
             variables.video_object.write(drawn_frame_with_hand)
+            
+            # Capture animation data if JSON export is enabled
+            if variables.export_json:
+                frame_data = {
+                    "frame_number": len(variables.animation_data["frames_written"]),
+                    "tile_drawn": {
+                        "grid_position": [int(selected_ind_val[0]), int(selected_ind_val[1])],
+                        "pixel_coords": {
+                            "x_start": int(range_h_start),
+                            "x_end": int(range_h_end),
+                            "y_start": int(range_v_start),
+                            "y_end": int(range_v_end)
+                        }
+                    },
+                    "hand_position": {
+                        "x": int(hand_coord_x),
+                        "y": int(hand_coord_y)
+                    },
+                    "tiles_remaining": int(len(cut_black_indices))
+                }
+                variables.animation_data["frames_written"].append(frame_data)
 
         if counter % 40 == 0 and len(cut_black_indices) > 0:
             print(f"Tuiles restantes: {len(cut_black_indices)}")
@@ -308,6 +336,58 @@ def draw_whiteboard_animations(
     # 6. Fermeture de l'objet vidéo
     variables.video_object.release()
 
+
+def export_animation_json(variables, json_path):
+    """Exporte les données d'animation au format JSON."""
+    if not variables.animation_data:
+        print("⚠️ Aucune donnée d'animation à exporter.")
+        return False
+    
+    try:
+        # Convert numpy types to Python native types
+        def convert_to_native(obj):
+            """Convertit les types numpy en types Python natifs."""
+            if isinstance(obj, (np.integer, np.int8, np.int16, np.int32, np.int64,
+                               np.uint8, np.uint16, np.uint32, np.uint64)):
+                return int(obj)
+            elif isinstance(obj, (np.floating, np.float16, np.float32, np.float64)):
+                return float(obj)
+            elif isinstance(obj, np.ndarray):
+                return obj.tolist()
+            elif isinstance(obj, dict):
+                return {key: convert_to_native(value) for key, value in obj.items()}
+            elif isinstance(obj, list):
+                return [convert_to_native(item) for item in obj]
+            else:
+                return obj
+        
+        export_data = {
+            "metadata": {
+                "frame_rate": int(variables.frame_rate),
+                "width": int(variables.resize_wd),
+                "height": int(variables.resize_ht),
+                "split_len": int(variables.split_len),
+                "object_skip_rate": int(variables.object_skip_rate),
+                "total_frames": len(variables.animation_data["frames_written"]),
+                "hand_dimensions": {
+                    "width": int(variables.hand_wd),
+                    "height": int(variables.hand_ht)
+                }
+            },
+            "animation": convert_to_native(variables.animation_data)
+        }
+        
+        with open(json_path, 'w', encoding='utf-8') as f:
+            json.dump(export_data, f, indent=2, ensure_ascii=False)
+        
+        print(f"✅ Données d'animation exportées: {json_path}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Erreur lors de l'export JSON: {e}")
+        return False
+
+
 def find_nearest_res(given):
     """Trouve la résolution standard la plus proche pour une dimension donnée."""
     arr = np.array([360, 480, 640, 720, 1080, 1280, 1440, 1920, 2160, 2560, 3840, 4320, 7680])
@@ -325,6 +405,7 @@ class AllVariables:
         object_skip_rate=None,
         bg_object_skip_rate=None,
         end_gray_img_duration_in_sec=None,
+        export_json=False,
     ):
         self.frame_rate = frame_rate
         self.resize_wd = resize_wd
@@ -333,6 +414,7 @@ class AllVariables:
         self.object_skip_rate = object_skip_rate
         self.bg_object_skip_rate = bg_object_skip_rate
         self.end_gray_img_duration_in_sec = end_gray_img_duration_in_sec
+        self.export_json = export_json
         
         # Variables qui seront ajoutées plus tard
         self.img_ht = None
@@ -347,6 +429,9 @@ class AllVariables:
         self.hand_mask_inv = None
         self.video_object = None
         self.drawn_frame = None
+        
+        # Variables pour l'export JSON
+        self.animation_data = None
 
 
 def common_divisors(num1, num2):
@@ -405,7 +490,7 @@ def ffmpeg_convert(source_vid, dest_vid, platform="linux"):
     return ff_stat
 
 
-def initiate_sketch_sync(image_path, split_len, frame_rate, object_skip_rate, bg_object_skip_rate, main_img_duration, callback, save_path=save_path, which_platform="linux"):
+def initiate_sketch_sync(image_path, split_len, frame_rate, object_skip_rate, bg_object_skip_rate, main_img_duration, callback, save_path=save_path, which_platform="linux", export_json=False):
     """Version synchrone de initiate_sketch pour l'exécution en ligne de commande (sans Kivy Clock)."""
     global platform
     platform = which_platform
@@ -428,6 +513,8 @@ def initiate_sketch_sync(image_path, split_len, frame_rate, object_skip_rate, bg
         save_video_path = os.path.join(save_path, video_save_name)
         ffmpeg_file_name = f"vid_{current_date}_{current_time}_h264.mp4"
         ffmpeg_video_path = os.path.join(save_path, ffmpeg_file_name)
+        json_file_name = f"animation_{current_date}_{current_time}.json"
+        json_export_path = os.path.join(save_path, json_file_name)
         os.makedirs(os.path.dirname(save_video_path), exist_ok=True)
         print(f"Chemin de sauvegarde brut: {save_video_path}")
 
@@ -441,12 +528,16 @@ def initiate_sketch_sync(image_path, split_len, frame_rate, object_skip_rate, bg
         variables = AllVariables(
             frame_rate=frame_rate, resize_wd=img_wd, resize_ht=img_ht, split_len=split_len, 
             object_skip_rate=object_skip_rate, bg_object_skip_rate=bg_object_skip_rate, 
-            end_gray_img_duration_in_sec=main_img_duration
+            end_gray_img_duration_in_sec=main_img_duration, export_json=export_json
         )
 
         draw_whiteboard_animations(
             image_bgr, mask_path, hand_path, hand_mask_path, save_video_path, variables
         )
+        
+        # Export JSON if requested
+        if export_json:
+            export_animation_json(variables, json_export_path)
         
         ff_stat = ffmpeg_convert(source_vid=save_video_path, dest_vid=ffmpeg_video_path, platform=platform)
         
@@ -456,6 +547,10 @@ def initiate_sketch_sync(image_path, split_len, frame_rate, object_skip_rate, bg
             print(f"Vidéo brute supprimée: {save_video_path}")
         else:
             final_result = {"status": True, "message": f"{save_video_path}"} 
+        
+        # Add JSON path to result if exported
+        if export_json:
+            final_result["json_path"] = json_export_path
 
     except Exception as e:
         final_result = {"status": False, "message": f"Erreur fatale: {e}"}
@@ -543,6 +638,12 @@ def main():
     )
     
     parser.add_argument(
+        '--export-json',
+        action='store_true',
+        help="Exporte les données d'animation au format JSON (séquence de dessin, positions de la main, etc.)."
+    )
+    
+    parser.add_argument(
         '--get-split-lens', 
         action='store_true',
         help="Affiche les valeurs 'split_len' recommandées pour le chemin d'image fourni, puis quitte."
@@ -596,6 +697,8 @@ def main():
         """Fonction de rappel appelée à la fin de la génération."""
         if result["status"]:
             print(f"\n✅ SUCCÈS! Vidéo enregistrée sous: {result['message']}")
+            if "json_path" in result:
+                print(f"✅ Données d'animation exportées: {result['json_path']}")
         else:
             print(f"\n❌ ÉCHEC de la génération vidéo. Message: {result['message']}")
 
@@ -607,7 +710,8 @@ def main():
         args.skip_rate,
         args.bg_skip_rate,
         args.duration,
-        final_callback_cli
+        final_callback_cli,
+        export_json=args.export_json
     )
 
 if __name__ == '__main__':
