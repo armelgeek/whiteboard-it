@@ -6,6 +6,7 @@ Application de création d'animations de type "dessin sur tableau blanc" (whiteb
 
 - ✅ Génération de vidéos d'animation de dessin à partir d'images
 - ✅ **Support de plusieurs images avec combinaison automatique** (NOUVEAU)
+- ✅ **Transitions entre slides** (fade, wipe, push, iris) (NOUVEAU)
 - ✅ Personnalisation des paramètres (FPS, vitesse, grille)
 - ✅ Export JSON des données d'animation
 - ✅ Support de plusieurs formats d'image
@@ -75,6 +76,8 @@ python whiteboard_animator.py image.png --get-split-lens
 - `--frame-rate` : Images par seconde (par défaut: 30)
 - `--skip-rate` : Vitesse de dessin (plus grand = plus rapide, par défaut: 8)
 - `--duration` : Durée de l'image finale en secondes (par défaut: 3)
+- `--transition` : Type de transition entre les slides - choix: none, fade, wipe, push_left, push_right, iris (par défaut: none)
+- `--transition-duration` : Durée de la transition en secondes (par défaut: 0.5)
 - `--export-json` : Exporter les données d'animation au format JSON
 - `--get-split-lens` : Afficher les valeurs recommandées pour split-len
 
@@ -122,7 +125,25 @@ python whiteboard_animator.py slide1.png slide2.png slide3.png --export-json
 
 # Personnaliser la vitesse de dessin
 python whiteboard_animator.py img1.png img2.png --skip-rate 15 --duration 2
+
+# Avec transition en fondu entre les slides
+python whiteboard_animator.py slide1.png slide2.png slide3.png --transition fade
+
+# Avec transition de type "push left" et durée personnalisée
+python whiteboard_animator.py slide1.png slide2.png --transition push_left --transition-duration 1.0
+
+# Tous les types de transitions disponibles
+python whiteboard_animator.py img1.png img2.png img3.png --transition iris --transition-duration 0.8
 ```
+
+### Transitions disponibles
+
+- **none** : Pas de transition (changement instantané)
+- **fade** : Fondu enchaîné entre les slides
+- **wipe** : Balayage de gauche à droite
+- **push_left** : Pousse la slide actuelle vers la gauche
+- **push_right** : Pousse la slide actuelle vers la droite
+- **iris** : Transition en cercle qui s'agrandit depuis le centre
 
 ### Cas d'usage typiques
 
