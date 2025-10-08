@@ -2,6 +2,16 @@
 
 Ce répertoire contient des exemples de fichiers de configuration et de scripts pour démontrer les différentes fonctionnalités de Whiteboard-It.
 
+## 🚀 Guide de démarrage rapide
+
+**Nouveau dans Whiteboard-It?** Consultez le **[Guide de référence rapide (QUICK_REFERENCE.md)](QUICK_REFERENCE.md)** pour:
+- Exemples classés par niveau de difficulté (débutant à expert)
+- Commandes prêtes à l'emploi
+- Options de ligne de commande (qualité, formats, watermark)
+- Combinaisons populaires pour réseaux sociaux
+
+---
+
 ## Fichiers de configuration JSON
 
 ### 1. Concepts de base
