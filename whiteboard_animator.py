@@ -490,8 +490,105 @@ def ffmpeg_convert(source_vid, dest_vid, platform="linux"):
     return ff_stat
 
 
-def concatenate_videos(video_paths, output_path):
-    """Concatène plusieurs vidéos en une seule vidéo finale."""
+def generate_transition_frames(frame1, frame2, transition_type, num_frames, fps):
+    """Génère des frames de transition entre deux frames.
+    
+    Args:
+        frame1: Frame de fin de la vidéo précédente (numpy array BGR)
+        frame2: Frame de début de la vidéo suivante (numpy array BGR)
+        transition_type: Type de transition ('none', 'fade', 'wipe', 'push_left', 'push_right', 'iris')
+        num_frames: Nombre de frames de transition à générer
+        fps: Frame rate de la vidéo
+    
+    Returns:
+        Liste de frames de transition
+    """
+    if transition_type == 'none' or num_frames == 0:
+        return []
+    
+    transition_frames = []
+    
+    if transition_type == 'fade':
+        # Transition en fondu
+        for i in range(num_frames):
+            alpha = (i + 1) / (num_frames + 1)
+            blended = cv2.addWeighted(frame1, 1 - alpha, frame2, alpha, 0)
+            transition_frames.append(blended)
+    
+    elif transition_type == 'wipe':
+        # Transition en balayage de gauche à droite
+        height, width = frame1.shape[:2]
+        for i in range(num_frames):
+            progress = (i + 1) / (num_frames + 1)
+            split_x = int(width * progress)
+            frame = frame1.copy()
+            frame[:, :split_x] = frame2[:, :split_x]
+            transition_frames.append(frame)
+    
+    elif transition_type == 'push_left':
+        # Poussée vers la gauche
+        height, width = frame1.shape[:2]
+        for i in range(num_frames):
+            progress = (i + 1) / (num_frames + 1)
+            offset = int(width * progress)
+            frame = np.zeros_like(frame1)
+            
+            # Partie de frame1 qui reste visible
+            if offset < width:
+                frame[:, :width-offset] = frame1[:, offset:]
+            
+            # Partie de frame2 qui devient visible
+            frame[:, width-offset:] = frame2[:, :offset]
+            transition_frames.append(frame)
+    
+    elif transition_type == 'push_right':
+        # Poussée vers la droite
+        height, width = frame1.shape[:2]
+        for i in range(num_frames):
+            progress = (i + 1) / (num_frames + 1)
+            offset = int(width * progress)
+            frame = np.zeros_like(frame1)
+            
+            # Partie de frame2 qui devient visible
+            frame[:, :offset] = frame2[:, width-offset:]
+            
+            # Partie de frame1 qui reste visible
+            if offset < width:
+                frame[:, offset:] = frame1[:, :width-offset]
+            transition_frames.append(frame)
+    
+    elif transition_type == 'iris':
+        # Transition en iris (cercle qui s'agrandit)
+        height, width = frame1.shape[:2]
+        center = (width // 2, height // 2)
+        max_radius = int(np.sqrt(width**2 + height**2) / 2)
+        
+        for i in range(num_frames):
+            progress = (i + 1) / (num_frames + 1)
+            radius = int(max_radius * progress)
+            
+            # Créer un masque circulaire
+            mask = np.zeros((height, width), dtype=np.uint8)
+            cv2.circle(mask, center, radius, 255, -1)
+            mask_3ch = cv2.merge([mask, mask, mask])
+            
+            # Appliquer le masque
+            frame = frame1.copy()
+            frame = np.where(mask_3ch == 255, frame2, frame1)
+            transition_frames.append(frame)
+    
+    return transition_frames
+
+
+def concatenate_videos(video_paths, output_path, transition_type='none', transition_duration=0.5):
+    """Concatène plusieurs vidéos en une seule vidéo finale avec transitions optionnelles.
+    
+    Args:
+        video_paths: Liste des chemins des vidéos à concaténer
+        output_path: Chemin de sortie pour la vidéo combinée
+        transition_type: Type de transition ('none', 'fade', 'wipe', 'push_left', 'push_right', 'iris')
+        transition_duration: Durée de la transition en secondes
+    """
     try:
         import av
         
@@ -505,6 +602,8 @@ def concatenate_videos(video_paths, output_path):
             return True
         
         print(f"🔗 Concaténation de {len(video_paths)} vidéos...")
+        if transition_type != 'none':
+            print(f"   Transition: {transition_type} ({transition_duration}s)")
         
         # Ouvrir le premier fichier pour obtenir les paramètres
         first_container = av.open(video_paths[0], mode="r")
@@ -514,6 +613,9 @@ def concatenate_videos(video_paths, output_path):
         fps = first_stream.average_rate
         first_container.close()
         
+        # Calculer le nombre de frames de transition
+        num_transition_frames = int(float(fps) * transition_duration)
+        
         # Créer le conteneur de sortie
         output_container = av.open(output_path, mode="w")
         out_stream = output_container.add_stream("h264", rate=fps)
@@ -522,17 +624,54 @@ def concatenate_videos(video_paths, output_path):
         out_stream.pix_fmt = "yuv420p"
         out_stream.options = {"crf": "20"}
         
+        last_frame = None
+        
         # Concaténer toutes les vidéos
         for i, video_path in enumerate(video_paths):
             print(f"  Ajout de la vidéo {i+1}/{len(video_paths)}: {os.path.basename(video_path)}")
             input_container = av.open(video_path, mode="r")
             
+            first_frame_of_video = None
+            frames_list = []
+            
+            # Lire toutes les frames de cette vidéo
             for frame in input_container.decode(video=0):
+                frames_list.append(frame)
+            
+            input_container.close()
+            
+            # Ajouter la transition si ce n'est pas la première vidéo
+            if i > 0 and last_frame is not None and len(frames_list) > 0:
+                first_frame_of_video = frames_list[0]
+                
+                # Convertir les frames PyAV en numpy arrays
+                last_frame_np = last_frame.to_ndarray(format='bgr24')
+                first_frame_np = first_frame_of_video.to_ndarray(format='bgr24')
+                
+                # Générer les frames de transition
+                transition_frames = generate_transition_frames(
+                    last_frame_np, first_frame_np, transition_type, 
+                    num_transition_frames, float(fps)
+                )
+                
+                # Encoder les frames de transition
+                for trans_frame in transition_frames:
+                    # Convertir numpy array en PyAV frame
+                    av_frame = av.VideoFrame.from_ndarray(trans_frame, format='bgr24')
+                    av_frame.pts = None
+                    packet = out_stream.encode(av_frame)
+                    if packet:
+                        output_container.mux(packet)
+            
+            # Ajouter toutes les frames de cette vidéo
+            for frame in frames_list:
                 packet = out_stream.encode(frame)
                 if packet:
                     output_container.mux(packet)
             
-            input_container.close()
+            # Sauvegarder la dernière frame pour la transition suivante
+            if len(frames_list) > 0:
+                last_frame = frames_list[-1]
         
         # Finaliser l'encodage
         packet = out_stream.encode()
@@ -633,8 +772,21 @@ def initiate_sketch_sync(image_path, split_len, frame_rate, object_skip_rate, bg
     callback(final_result)
 
 
-def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate, bg_object_skip_rate, main_img_duration, which_platform="linux", export_json=False):
-    """Traite plusieurs images et génère une vidéo combinée."""
+def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate, bg_object_skip_rate, main_img_duration, which_platform="linux", export_json=False, transition='none', transition_duration=0.5):
+    """Traite plusieurs images et génère une vidéo combinée.
+    
+    Args:
+        image_paths: Liste des chemins des images à traiter
+        split_len: Taille de la grille pour le dessin
+        frame_rate: Images par seconde
+        object_skip_rate: Vitesse de dessin
+        bg_object_skip_rate: Taux de saut pour l'arrière-plan
+        main_img_duration: Durée de l'image finale en secondes
+        which_platform: Plateforme ('linux', 'android', etc.)
+        export_json: Exporter les données d'animation au format JSON
+        transition: Type de transition ('none', 'fade', 'wipe', 'push_left', 'push_right', 'iris')
+        transition_duration: Durée de la transition en secondes
+    """
     global platform
     platform = which_platform
     
@@ -735,7 +887,7 @@ def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate
         combined_video_name = f"vid_{series_id}_combined.mp4"
         combined_video_path = os.path.join(save_path, combined_video_name)
         
-        concat_success = concatenate_videos(generated_videos, combined_video_path)
+        concat_success = concatenate_videos(generated_videos, combined_video_path, transition_type=transition, transition_duration=transition_duration)
         
         if concat_success:
             # Supprimer les vidéos individuelles après concaténation réussie
@@ -866,6 +1018,21 @@ def main():
     )
     
     parser.add_argument(
+        '--transition',
+        type=str,
+        default='none',
+        choices=['none', 'fade', 'wipe', 'push_left', 'push_right', 'iris'],
+        help="Type de transition entre les slides (par défaut: none). Disponible: none, fade, wipe, push_left, push_right, iris."
+    )
+    
+    parser.add_argument(
+        '--transition-duration',
+        type=float,
+        default=0.5,
+        help="Durée de la transition en secondes (par défaut: 0.5)."
+    )
+    
+    parser.add_argument(
         '--export-json',
         action='store_true',
         help="Exporte les données d'animation au format JSON (séquence de dessin, positions de la main, etc.)."
@@ -966,7 +1133,9 @@ def main():
             args.skip_rate,
             args.bg_skip_rate,
             args.duration,
-            export_json=args.export_json
+            export_json=args.export_json,
+            transition=args.transition,
+            transition_duration=args.transition_duration
         )
         
         print("\n" + "="*60)
