@@ -247,87 +247,126 @@ def extract_character_paths(text, font_path, font_size):
         return None
 
 
-def convert_glyph_paths_to_points(char_paths, font_size, x_offset, y_offset, target_height):
+def convert_glyph_paths_to_points(char_paths, font_size, text_config, target_width, target_height):
     """
     Convert font glyph paths to screen coordinates for drawing.
     
     Args:
         char_paths: Character path data from extract_character_paths
         font_size: Font size in pixels
-        x_offset: Horizontal offset for positioning
-        y_offset: Vertical offset for positioning
-        target_height: Canvas height for coordinate transformation
+        text_config: Text configuration with position, align, etc.
+        target_width: Canvas width
+        target_height: Canvas height
         
     Returns:
         List of drawing segments (sequences of points)
     """
     drawing_segments = []
-    current_x = x_offset
+    
+    # Get text configuration
+    text = text_config.get('text', '')
+    align = text_config.get('align', 'left')
+    position = text_config.get('position', None)
+    line_height_multiplier = text_config.get('line_height', 1.2)
     
     # Scale factor from font units to pixels
     scale = font_size / 1000.0  # Typical font unit is 1000 per em
     
-    for char_data in char_paths:
-        if char_data.get('is_space', False):
-            if char_data['char'] == ' ':
-                current_x += font_size * 0.3  # Space width
-            elif char_data['char'] == '\n':
-                # Line breaks handled at higher level
-                pass
+    # Split text into lines
+    lines = text.split('\n')
+    
+    # Calculate starting position
+    line_height = int(font_size * line_height_multiplier)
+    total_height = len(lines) * line_height
+    
+    if position and 'y' in position:
+        start_y = position['y']
+    else:
+        start_y = (target_height - total_height) // 2
+    
+    # Process each line
+    current_y = start_y
+    line_char_idx = 0
+    
+    for line_idx, line in enumerate(lines):
+        if not line.strip():
+            current_y += line_height
+            line_char_idx += len(line) + 1  # +1 for newline
             continue
-            
-        paths = char_data.get('paths', [])
-        char_segments = []
         
-        current_segment = []
-        for command_type, coords in paths:
-            if command_type == 'moveTo':
-                # Start new segment
-                if current_segment:
-                    char_segments.append(current_segment)
-                    current_segment = []
-                # coords is a tuple of tuples: ((x, y),)
-                point = coords[0]
-                x, y = point
-                # Transform coordinates
-                screen_x = int(current_x + x * scale)
-                screen_y = int(y_offset + (target_height * 0.7 - y * scale))
-                current_segment.append((screen_x, screen_y))
+        # Get characters for this line
+        line_chars = char_paths[line_char_idx:line_char_idx + len(line)]
+        
+        # Calculate line width for alignment
+        line_width_estimate = len(line) * font_size * 0.6  # Rough estimate
+        
+        if position and 'x' in position:
+            line_x = position['x']
+        elif align == 'center':
+            line_x = (target_width - line_width_estimate) // 2
+        elif align == 'right':
+            line_x = target_width - line_width_estimate - 20
+        else:  # left
+            line_x = 20
+        
+        current_x = line_x
+        
+        # Process each character in the line
+        for char_data in line_chars:
+            if char_data.get('is_space', False):
+                if char_data['char'] == ' ':
+                    current_x += font_size * 0.3
+                continue
                 
-            elif command_type == 'lineTo':
-                point = coords[0]
-                x, y = point
-                screen_x = int(current_x + x * scale)
-                screen_y = int(y_offset + (target_height * 0.7 - y * scale))
-                current_segment.append((screen_x, screen_y))
-                
-            elif command_type == 'qCurveTo':
-                # Quadratic bezier curve - coords is a tuple of points
-                for point in coords:
-                    if isinstance(point, tuple) and len(point) == 2:
-                        x, y = point
-                        screen_x = int(current_x + x * scale)
-                        screen_y = int(y_offset + (target_height * 0.7 - y * scale))
-                        current_segment.append((screen_x, screen_y))
-                        
-            elif command_type == 'closePath':
-                if current_segment and len(current_segment) > 1:
-                    char_segments.append(current_segment)
-                    current_segment = []
-        
-        if current_segment:
-            char_segments.append(current_segment)
+            paths = char_data.get('paths', [])
+            char_segments = []
             
-        drawing_segments.extend(char_segments)
+            current_segment = []
+            for command_type, coords in paths:
+                if command_type == 'moveTo':
+                    if current_segment:
+                        char_segments.append(current_segment)
+                        current_segment = []
+                    point = coords[0]
+                    x, y = point
+                    screen_x = int(current_x + x * scale)
+                    screen_y = int(current_y + (font_size - y * scale))
+                    current_segment.append((screen_x, screen_y))
+                    
+                elif command_type == 'lineTo':
+                    point = coords[0]
+                    x, y = point
+                    screen_x = int(current_x + x * scale)
+                    screen_y = int(current_y + (font_size - y * scale))
+                    current_segment.append((screen_x, screen_y))
+                    
+                elif command_type == 'qCurveTo':
+                    for point in coords:
+                        if isinstance(point, tuple) and len(point) == 2:
+                            x, y = point
+                            screen_x = int(current_x + x * scale)
+                            screen_y = int(current_y + (font_size - y * scale))
+                            current_segment.append((screen_x, screen_y))
+                            
+                elif command_type == 'closePath':
+                    if current_segment and len(current_segment) > 1:
+                        char_segments.append(current_segment)
+                        current_segment = []
+            
+            if current_segment:
+                char_segments.append(current_segment)
+                
+            drawing_segments.extend(char_segments)
+            
+            # Advance x for next character
+            if char_segments:
+                max_x = max(pt[0] for seg in char_segments for pt in seg)
+                current_x = max_x + int(font_size * 0.05)
+            else:
+                current_x += font_size * 0.5
         
-        # Advance x position for next character
-        # Approximate character width
-        if char_segments:
-            max_x = max(pt[0] for seg in char_segments for pt in seg)
-            min_x = min(pt[0] for seg in char_segments for pt in seg)
-            current_x = max_x + (font_size * 0.1)  # Small gap between chars
-        else:
-            current_x += font_size * 0.5
+        current_y += line_height
+        line_char_idx += len(line) + 1  # +1 for newline
     
     return drawing_segments
 
@@ -356,11 +395,16 @@ def draw_svg_path_handwriting(
     if mode == 'eraser':
         variables.drawn_frame[:, :, :] = variables.img
     
-    # Try to extract paths if text_config is provided
+    # Check if user explicitly disabled SVG path-based drawing
+    use_svg_paths = True
+    if text_config:
+        use_svg_paths = text_config.get('use_svg_paths', True)
+    
+    # Try to extract paths if enabled and text_config is provided
     use_path_based = False
     drawing_segments = []
     
-    if text_config:
+    if use_svg_paths and text_config:
         text = text_config.get('text', '')
         font_name = text_config.get('font', 'Arial')
         font_size = text_config.get('size', 32)
@@ -392,10 +436,9 @@ def draw_svg_path_handwriting(
             char_paths = extract_character_paths(text, font_path, font_size)
             if char_paths:
                 # Convert to drawing segments
-                x_offset = variables.resize_wd // 2 - (len(text) * font_size) // 4
-                y_offset = variables.resize_ht // 2 - font_size // 2
                 drawing_segments = convert_glyph_paths_to_points(
-                    char_paths, font_size, x_offset, y_offset, variables.resize_ht
+                    char_paths, font_size, text_config, 
+                    variables.resize_wd, variables.resize_ht
                 )
                 if drawing_segments:
                     use_path_based = True
