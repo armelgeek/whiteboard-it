@@ -373,6 +373,8 @@ Les couches sont dessinées séquentiellement selon leur z_index, permettant de 
 - **Animations par étapes** : Dessiner d'abord le fond, puis ajouter des éléments progressivement
 - **Créations style "Insta Doodle"** : Superposition d'images avec positions et timing personnalisés
 
+📖 **Pour plus de détails, consultez le [Guide complet des couches (LAYERS_GUIDE.md)](LAYERS_GUIDE.md)**
+
 
 # Avec transition de type "push left" et durée personnalisée
 python whiteboard_animator.py slide1.png slide2.png --transition push_left --transition-duration 1.0
@@ -408,9 +410,20 @@ whiteboard-it/
 ├── examples/                # Scripts d'exemple
 │   ├── use_animation_data.py
 │   └── README.md
-├── EXPORT_FORMAT.md         # Documentation du format JSON
+├── CONFIG_FORMAT.md         # Documentation du format de configuration
+├── EXPORT_FORMAT.md         # Documentation du format JSON d'export
+├── LAYERS_GUIDE.md          # Guide complet des couches (layers)
+├── TRANSITIONS.md           # Documentation des transitions
 └── README.md               # Ce fichier
 ```
+
+## Documentation
+
+- **[CONFIG_FORMAT.md](CONFIG_FORMAT.md)** - Format de configuration JSON pour personnaliser les slides
+- **[LAYERS_GUIDE.md](LAYERS_GUIDE.md)** - Guide complet pour utiliser les couches multiples
+- **[EXPORT_FORMAT.md](EXPORT_FORMAT.md)** - Format des données d'animation exportées
+- **[TRANSITIONS.md](TRANSITIONS.md)** - Documentation détaillée des transitions
+- **[examples/README.md](examples/README.md)** - Exemples d'utilisation des données JSON
 
 ## Licence
 
