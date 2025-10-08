@@ -12,18 +12,36 @@
 - Must support multi-line text, line breaks
 - Must support any font and text style
 
-## Implementation Status: ✅ COMPLETED
+## Implementation Status: ✅ COMPLETED & ENHANCED
 
 All requested features have been successfully implemented:
 
 ✅ **Text as a layer type** - Text layers work alongside image layers
 ✅ **Dynamic text rendering** - Text is generated on-the-fly, no image files needed
 ✅ **Handwriting animation** - Text is "written" with pen animation using existing layer animation system
+✅ **Natural writing order** - Text follows character contours left-to-right (not tile-based decoration)
 ✅ **Multi-line support** - Full support for line breaks with `\n`
 ✅ **Font customization** - Support for any font family, size, and style
 ✅ **Text styling** - Bold, italic, bold+italic support
 ✅ **Color customization** - RGB tuples and hex color codes
 ✅ **Positioning and alignment** - Precise control over text placement
+
+## Recent Enhancement: Natural Handwriting Animation (Oct 2024)
+
+**Issue Fixed:** Text was being drawn tile-by-tile like images, creating a "decorating" effect instead of natural handwriting.
+
+**Solution:** Implemented column-by-column drawing algorithm specifically for text layers:
+- Text is drawn from left to right, following natural reading/writing order
+- Each vertical column is drawn top to bottom
+- Hand follows the character contours naturally
+- Image layers continue to use tile-based drawing for efficiency
+
+**Technical Details:**
+- New function: `draw_text_handwriting()` replaces tile-based algorithm for text
+- Analyzes text pixels column-by-column (left to right)
+- Groups vertical segments within each column
+- Hand position moves smoothly across characters
+- Backward compatible: Image layers still use `draw_masked_object()`
 
 ## Technical Implementation
 
@@ -44,17 +62,52 @@ Uses PIL/Pillow to dynamically generate text images with full styling support.
 - RGB and hex color support
 - Returns OpenCV-compatible BGR image
 
-#### 2. Layer System Integration
+#### 2. Text Handwriting Animation Function
+
+**Function:** `draw_text_handwriting(variables, skip_rate, mode, eraser, eraser_mask_inv, eraser_ht, eraser_wd)`
+
+Draws text with natural handwriting animation following character contours.
+
+**Algorithm:**
+1. Convert text image to binary threshold
+2. Scan columns from left to right (x = 0 to width)
+3. For each column, identify vertical segments with text pixels
+4. Group segments and sort by (x, y) for natural writing order
+5. Draw each segment with hand positioned at segment center
+6. Apply skip_rate to control animation speed
+
+**Key Differences from Tile-Based Drawing:**
+- **Text:** Column-by-column, left-to-right (mimics handwriting)
+- **Images:** Tile-based, nearest-neighbor (optimized for complex drawings)
+
+**Example Flow:**
+```
+Text "Hi" drawing order:
+Column 1: H vertical line (left)
+Column 2: H horizontal middle
+Column 3: H vertical line (right)
+Column 4: (space)
+Column 5: i dot
+Column 6: i vertical line
+```
+
+#### 3. Layer System Integration
 
 **Modified Functions:**
-- `draw_layered_whiteboard_animations()` - Added text layer detection and rendering
+- `draw_layered_whiteboard_animations()` - Added text layer detection and text-specific drawing
+- `draw_text_handwriting()` - New function for text animation
 - `compose_layers()` - Added text layer support for static composition
+- `process_multiple_images()` - Support slides with layers but no image paths
 
 **Layer Type Detection:**
 ```python
 layer_type = layer.get('type', 'image')
 if layer_type == 'text':
-    # Render text dynamically
+    # Use text-specific handwriting animation
+    draw_text_handwriting(variables, skip_rate, mode)
+else:
+    # Use traditional tile-based animation for images
+    draw_masked_object(variables, skip_rate, mode)
     layer_img = render_text_to_image(text_config, width, height)
 else:
     # Load image from file
