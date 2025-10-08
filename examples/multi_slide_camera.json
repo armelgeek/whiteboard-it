@@ -1,0 +1,58 @@
+{
+  "_comment": "Example 6: Focus on different areas with transitions",
+  "_description": "Multiple slides with camera focus on different areas and smooth transitions",
+  "slides": [
+    {
+      "index": 0,
+      "duration": 8,
+      "layers": [
+        {
+          "image_path": "demo/1.jpg",
+          "z_index": 1,
+          "skip_rate": 10,
+          "camera": {
+            "zoom": 1.5,
+            "position": {"x": 0.3, "y": 0.3}
+          },
+          "animation": {
+            "type": "zoom_in",
+            "duration": 1.5,
+            "start_zoom": 1.5,
+            "end_zoom": 2.0,
+            "focus_position": {"x": 0.3, "y": 0.3}
+          }
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "duration": 8,
+      "layers": [
+        {
+          "image_path": "demo/2.jpg",
+          "z_index": 1,
+          "skip_rate": 10,
+          "camera": {
+            "zoom": 1.5,
+            "position": {"x": 0.7, "y": 0.7}
+          },
+          "animation": {
+            "type": "zoom_in",
+            "duration": 1.5,
+            "start_zoom": 1.5,
+            "end_zoom": 2.0,
+            "focus_position": {"x": 0.7, "y": 0.7}
+          }
+        }
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "after_slide": 0,
+      "type": "fade",
+      "duration": 1.0,
+      "pause_before": 0.5
+    }
+  ]
+}

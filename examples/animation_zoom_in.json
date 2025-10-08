@@ -1,0 +1,25 @@
+{
+  "_comment": "Example 2: Zoom-in animation after drawing",
+  "_description": "This demonstrates a post-animation zoom-in effect",
+  "slides": [
+    {
+      "index": 0,
+      "duration": 10,
+      "layers": [
+        {
+          "image_path": "demo/1.jpg",
+          "position": {"x": 0, "y": 0},
+          "z_index": 1,
+          "skip_rate": 10,
+          "animation": {
+            "type": "zoom_in",
+            "duration": 2.0,
+            "start_zoom": 1.0,
+            "end_zoom": 1.8,
+            "focus_position": {"x": 0.5, "y": 0.5}
+          }
+        }
+      ]
+    }
+  ]
+}
