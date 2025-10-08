@@ -1,0 +1,28 @@
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 10,
+      "layers": [
+        {
+          "image_path": "demo/1.jpg",
+          "position": {"x": 0, "y": 0},
+          "z_index": 1,
+          "skip_rate": 10,
+          "mode": "draw"
+        },
+        {
+          "image_path": "demo/2.jpg",
+          "position": {"x": 0, "y": 0},
+          "z_index": 2,
+          "skip_rate": 10,
+          "mode": "draw",
+          "morph": {
+            "enabled": true,
+            "duration": 0.8
+          }
+        }
+      ]
+    }
+  ]
+}

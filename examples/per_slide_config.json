@@ -1,0 +1,33 @@
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 2,
+      "skip_rate": 20
+    },
+    {
+      "index": 1,
+      "duration": 5,
+      "skip_rate": 8
+    },
+    {
+      "index": 2,
+      "duration": 3,
+      "skip_rate": 15
+    }
+  ],
+  "transitions": [
+    {
+      "after_slide": 0,
+      "type": "wipe",
+      "duration": 0.5,
+      "pause_before": 1.0
+    },
+    {
+      "after_slide": 1,
+      "type": "push_left",
+      "duration": 0.8,
+      "pause_before": 2.0
+    }
+  ]
+}
