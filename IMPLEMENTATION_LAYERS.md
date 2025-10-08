@@ -73,6 +73,8 @@ Draws animation with multiple layers, each with individual skip_rate.
 }
 ```
 
+**Note:** The `duration` parameter represents the **total slide duration** (animation + final hold time), not just the final hold time. The system automatically calculates animation time and adjusts the final hold time accordingly.
+
 ### Layer Properties
 
 | Property | Type | Default | Description |

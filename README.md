@@ -118,7 +118,9 @@ python whiteboard_animator.py image.png --get-split-lens
 - `--split-len` : Taille de la grille pour le dessin (par défaut: 15)
 - `--frame-rate` : Images par seconde (par défaut: 30)
 - `--skip-rate` : Vitesse de dessin (plus grand = plus rapide, par défaut: 8)
-- `--duration` : Durée de l'image finale en secondes (par défaut: 3)
+- `--duration` : **Durée TOTALE de la slide en secondes** (animation + affichage final, par défaut: 3)
+  - ⚠️ **Changement important:** `duration` représente maintenant la durée totale, pas uniquement le temps d'affichage après l'animation
+  - 📖 Voir [DURATION_GUIDE.md](DURATION_GUIDE.md) pour plus de détails
 
 ### Paramètres de qualité et format (NOUVEAU)
 - `--quality` : Qualité vidéo CRF (0-51, plus bas = meilleure qualité, par défaut: 18)
