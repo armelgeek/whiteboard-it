@@ -753,6 +753,166 @@ def generate_morph_frames(frame1, frame2, num_frames):
     return morph_frames
 
 
+def draw_text_handwriting(
+    variables, skip_rate=5, mode='draw',
+    eraser=None, eraser_mask_inv=None, eraser_ht=0, eraser_wd=0
+):
+    """
+    Draw text with handwriting animation following character contours.
+    Instead of tile-based drawing, this function draws text column-by-column
+    from left to right, top to bottom, simulating natural handwriting.
+    
+    Args:
+        variables: AllVariables object with image data
+        skip_rate: Frame skip rate for animation speed
+        mode: 'draw' for normal drawing, 'eraser' for eraser mode, 'static' for no animation
+        eraser: Eraser image (for eraser mode)
+        eraser_mask_inv: Inverted eraser mask (for eraser mode)
+        eraser_ht, eraser_wd: Eraser dimensions
+    """
+    # For eraser mode, start with the full image visible
+    if mode == 'eraser':
+        variables.drawn_frame[:, :, :] = variables.img
+    
+    # Convert to grayscale and threshold to find text pixels
+    img_thresh = variables.img_thresh.copy()
+    
+    # Find all columns that contain black pixels (text)
+    # We'll process column by column from left to right
+    height, width = img_thresh.shape
+    
+    # Find columns with text content
+    columns_with_text = []
+    for x in range(width):
+        column = img_thresh[:, x]
+        if np.any(column < 250):  # Has dark pixels (text)
+            columns_with_text.append(x)
+    
+    if len(columns_with_text) == 0:
+        return  # No text to draw
+    
+    # For each column, find the vertical segments (top to bottom)
+    column_segments = []
+    for x in columns_with_text:
+        column = img_thresh[:, x]
+        # Find continuous segments in this column
+        text_pixels = np.where(column < 250)[0]
+        
+        if len(text_pixels) > 0:
+            # Group consecutive pixels into segments
+            segments = []
+            start_y = text_pixels[0]
+            prev_y = text_pixels[0]
+            
+            for y in text_pixels[1:]:
+                if y - prev_y > 3:  # Gap detected, start new segment
+                    segments.append((start_y, prev_y))
+                    start_y = y
+                prev_y = y
+            
+            # Add the last segment
+            segments.append((start_y, prev_y))
+            
+            # Add all segments for this column
+            for y_start, y_end in segments:
+                column_segments.append((x, y_start, y_end))
+    
+    # Sort segments by x coordinate (left to right), then by y (top to bottom)
+    column_segments.sort(key=lambda seg: (seg[0], seg[1]))
+    
+    # Initialize animation data if JSON export is enabled
+    if variables.export_json:
+        variables.animation_data = {
+            "drawing_sequence": [],
+            "frames_written": []
+        }
+    
+    # Draw each segment
+    counter = 0
+    for seg_idx, (x, y_start, y_end) in enumerate(column_segments):
+        # Draw this vertical segment
+        if mode == 'eraser':
+            # In eraser mode, erase (set to white) the segment
+            variables.drawn_frame[y_start:y_end+1, x] = 255
+        else:
+            # In draw mode, copy from original image
+            variables.drawn_frame[y_start:y_end+1, x] = variables.img[y_start:y_end+1, x]
+        
+        # Calculate hand position at the middle of the segment
+        hand_coord_x = x
+        hand_coord_y = (y_start + y_end) // 2
+        
+        # Draw hand or eraser
+        if mode == 'static':
+            drawn_frame_with_hand = variables.drawn_frame.copy()
+        elif mode == 'eraser' and eraser is not None:
+            drawn_frame_with_hand = draw_eraser_on_img(
+                variables.drawn_frame.copy(),
+                eraser.copy(),
+                hand_coord_x,
+                hand_coord_y,
+                eraser_mask_inv.copy(),
+                eraser_ht,
+                eraser_wd,
+                variables.resize_ht,
+                variables.resize_wd,
+            )
+        else:
+            drawn_frame_with_hand = draw_hand_on_img(
+                variables.drawn_frame.copy(),
+                variables.hand.copy(),
+                hand_coord_x,
+                hand_coord_y,
+                variables.hand_mask_inv.copy(),
+                variables.hand_ht,
+                variables.hand_wd,
+                variables.resize_ht,
+                variables.resize_wd,
+            )
+        
+        counter += 1
+        # Write frame based on skip rate
+        if counter % skip_rate == 0 or seg_idx == len(column_segments) - 1:
+            # Apply watermark if specified
+            if variables.watermark_path:
+                drawn_frame_with_hand = apply_watermark(
+                    drawn_frame_with_hand,
+                    variables.watermark_path,
+                    variables.watermark_position,
+                    variables.watermark_opacity,
+                    variables.watermark_scale
+                )
+            
+            variables.video_object.write(drawn_frame_with_hand)
+            variables.frames_written += 1
+            
+            # Capture animation data if JSON export is enabled
+            if variables.export_json:
+                frame_data = {
+                    "frame_number": len(variables.animation_data["frames_written"]),
+                    "segment_drawn": {
+                        "x": int(x),
+                        "y_start": int(y_start),
+                        "y_end": int(y_end)
+                    },
+                    "hand_position": {
+                        "x": int(hand_coord_x),
+                        "y": int(hand_coord_y)
+                    },
+                    "segments_remaining": int(len(column_segments) - seg_idx - 1)
+                }
+                variables.animation_data["frames_written"].append(frame_data)
+        
+        # Progress indicator
+        if counter % 100 == 0 and seg_idx < len(column_segments) - 1:
+            remaining = len(column_segments) - seg_idx
+            print(f"Segments restants: {remaining}")
+    
+    # After drawing all segments, overlay the complete colored image
+    if mode != 'eraser':
+        variables.drawn_frame[:, :, :] = variables.img
+
+
 def draw_masked_object(
     variables, object_mask=None, skip_rate=5, black_pixel_threshold=10, mode='draw', 
     eraser=None, eraser_mask_inv=None, eraser_ht=0, eraser_wd=0
@@ -1238,22 +1398,43 @@ def draw_layered_whiteboard_animations(
             elif layer_mode == 'eraser' and eraser is not None:
                 # Mode eraser: utiliser l'eraser
                 print(f"    🧹 Mode eraser")
-                draw_masked_object(
-                    variables=layer_vars,
-                    skip_rate=layer_skip_rate,
-                    mode='eraser',
-                    eraser=eraser,
-                    eraser_mask_inv=eraser_mask_inv,
-                    eraser_ht=eraser_ht,
-                    eraser_wd=eraser_wd
-                )
+                # Use text-specific drawing for text layers, tile-based for images
+                if layer_type == 'text':
+                    draw_text_handwriting(
+                        variables=layer_vars,
+                        skip_rate=layer_skip_rate,
+                        mode='eraser',
+                        eraser=eraser,
+                        eraser_mask_inv=eraser_mask_inv,
+                        eraser_ht=eraser_ht,
+                        eraser_wd=eraser_wd
+                    )
+                else:
+                    draw_masked_object(
+                        variables=layer_vars,
+                        skip_rate=layer_skip_rate,
+                        mode='eraser',
+                        eraser=eraser,
+                        eraser_mask_inv=eraser_mask_inv,
+                        eraser_ht=eraser_ht,
+                        eraser_wd=eraser_wd
+                    )
             else:
                 # Mode normal: dessiner avec la main
-                draw_masked_object(
-                    variables=layer_vars,
-                    skip_rate=layer_skip_rate,
-                    mode='draw'
-                )
+                # Use text-specific drawing for text layers, tile-based for images
+                if layer_type == 'text':
+                    print(f"    ✍️  Mode handwriting (text)")
+                    draw_text_handwriting(
+                        variables=layer_vars,
+                        skip_rate=layer_skip_rate,
+                        mode='draw'
+                    )
+                else:
+                    draw_masked_object(
+                        variables=layer_vars,
+                        skip_rate=layer_skip_rate,
+                        mode='draw'
+                    )
             
             # Accumulate frame count from this layer
             variables.frames_written += layer_vars.frames_written
@@ -2321,12 +2502,30 @@ def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate
     global platform
     platform = which_platform
     
-    if not image_paths:
+    # Check if we have slides with layers configuration
+    has_slides_config = False
+    num_slides = 0
+    if per_slide_config and 'slides' in per_slide_config:
+        num_slides = len(per_slide_config['slides'])
+        has_slides_config = True
+    
+    # If no image paths and no slides config, error
+    if not image_paths and not has_slides_config:
         return {"status": False, "message": "Aucune image fournie"}
     
-    print("\n" + "="*60)
-    print(f"🎬 TRAITEMENT DE {len(image_paths)} IMAGE(S)")
-    print("="*60)
+    # Determine how many items to process
+    if has_slides_config:
+        # Use slides from config
+        num_items = num_slides
+        print("\n" + "="*60)
+        print(f"🎬 TRAITEMENT DE {num_items} SLIDE(S) DEPUIS LA CONFIGURATION")
+        print("="*60)
+    else:
+        # Use image paths
+        num_items = len(image_paths)
+        print("\n" + "="*60)
+        print(f"🎬 TRAITEMENT DE {num_items} IMAGE(S)")
+        print("="*60)
     
     generated_videos = []
     json_exports = []
@@ -2340,25 +2539,67 @@ def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate
     # Préparer les configurations de transition par slide
     transition_configs = []
     
-    # Traiter chaque image
-    for idx, image_path in enumerate(image_paths, 1):
-        print(f"\n📷 Image {idx}/{len(image_paths)}: {os.path.basename(image_path)}")
-        print("-" * 60)
+    # Traiter chaque slide/image
+    for idx in range(1, num_items + 1):
+        # Determine if this is an image-based or layer-based slide
+        slide_config = {}
+        layers = None
+        image_path = None
         
-        if not os.path.exists(image_path):
-            print(f"⚠️ Image ignorée (introuvable): {image_path}")
+        if has_slides_config:
+            # Get slide config from configuration
+            for slide_cfg in per_slide_config['slides']:
+                if slide_cfg.get('index') == idx - 1:
+                    slide_config = slide_cfg
+                    break
+            
+            layers = slide_config.get('layers', None)
+            image_path = slide_config.get('image_path', None)
+            
+            # If image_path specified in slide config, use it
+            if image_path:
+                if not os.path.isabs(image_path):
+                    image_path = os.path.join(base_path, image_path)
+            # Otherwise check if there's a corresponding image in image_paths
+            elif image_paths and idx <= len(image_paths):
+                image_path = image_paths[idx - 1]
+        else:
+            # Traditional mode: use image from image_paths
+            image_path = image_paths[idx - 1] if idx <= len(image_paths) else None
+            # Check for slide config even without layers
+            if per_slide_config and 'slides' in per_slide_config:
+                for slide_cfg in per_slide_config['slides']:
+                    if slide_cfg.get('index') == idx - 1:
+                        slide_config = slide_cfg
+                        break
+        
+        if layers:
+            print(f"\n📝 Slide {idx}/{num_items}: Couches de texte/images")
+        elif image_path:
+            print(f"\n📷 Image {idx}/{num_items}: {os.path.basename(image_path)}")
+        else:
+            print(f"\n⚠️ Slide {idx}/{num_items}: Aucune source (ignorée)")
             continue
         
+        print("-" * 60)
+        
         try:
-            # Lire l'image pour vérifier
-            image_bgr = cv2.imread(image_path)
-            if image_bgr is None:
-                print(f"⚠️ Image ignorée (illisible): {image_path}")
-                continue
-            
+            # Read image if available
+            image_bgr = None
             mask_path = None
             
-            # Noms de fichiers pour cette image
+            if image_path:
+                if not os.path.exists(image_path):
+                    print(f"⚠️ Image ignorée (introuvable): {image_path}")
+                    continue
+                
+                # Lire l'image pour vérifier
+                image_bgr = cv2.imread(image_path)
+                if image_bgr is None:
+                    print(f"⚠️ Image ignorée (illisible): {image_path}")
+                    continue
+            
+            # Noms de fichiers pour cette slide
             video_save_name = f"vid_{series_id}_img{idx}.mp4"
             save_video_path = os.path.join(save_path, video_save_name)
             ffmpeg_file_name = f"vid_{series_id}_img{idx}_h264.mp4"
@@ -2369,44 +2610,46 @@ def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate
             os.makedirs(save_path, exist_ok=True)
             
             # Calculer la résolution basée sur le ratio d'aspect
-            img_ht, img_wd = image_bgr.shape[0], image_bgr.shape[1]
-            
-            if aspect_ratio != 'original':
-                img_wd, img_ht = calculate_aspect_ratio_dimensions(img_wd, img_ht, aspect_ratio)
-                print(f"  Ratio d'aspect: {aspect_ratio}, Résolution cible: {img_wd}x{img_ht}")
-                # Apply padding to maintain aspect ratio
-                image_bgr = apply_aspect_ratio_padding(image_bgr, img_wd, img_ht)
+            if image_bgr is not None:
+                img_ht, img_wd = image_bgr.shape[0], image_bgr.shape[1]
+                
+                if aspect_ratio != 'original':
+                    img_wd, img_ht = calculate_aspect_ratio_dimensions(img_wd, img_ht, aspect_ratio)
+                    print(f"  Ratio d'aspect: {aspect_ratio}, Résolution cible: {img_wd}x{img_ht}")
+                    # Apply padding to maintain aspect ratio
+                    image_bgr = apply_aspect_ratio_padding(image_bgr, img_wd, img_ht)
+                else:
+                    original_aspect_ratio = img_wd / img_ht
+                    img_ht = find_nearest_res(img_ht)
+                    new_aspect_wd = int(img_ht * original_aspect_ratio)
+                    img_wd = find_nearest_res(new_aspect_wd)
+                    print(f"  Résolution cible: {img_wd}x{img_ht}")
             else:
-                original_aspect_ratio = img_wd / img_ht
-                img_ht = find_nearest_res(img_ht)
-                new_aspect_wd = int(img_ht * original_aspect_ratio)
-                img_wd = find_nearest_res(new_aspect_wd)
-                print(f"  Résolution cible: {img_wd}x{img_ht}")
+                # No image provided, use default resolution or get from config
+                # Default to 1920x1080 for text-only slides
+                img_wd = 1920
+                img_ht = 1080
+                if aspect_ratio == '1:1':
+                    img_wd, img_ht = 1080, 1080
+                elif aspect_ratio == '9:16':
+                    img_wd, img_ht = 1080, 1920
+                elif aspect_ratio == '16:9':
+                    img_wd, img_ht = 1920, 1080
+                print(f"  Résolution par défaut (texte uniquement): {img_wd}x{img_ht}")
             
-            # Obtenir la configuration pour cette slide
-            slide_config = {}
-            if per_slide_config and 'slides' in per_slide_config:
-                # Chercher la config pour cette slide (index 0-based dans le config)
-                for slide_cfg in per_slide_config['slides']:
-                    if slide_cfg.get('index') == idx - 1:
-                        slide_config = slide_cfg
-                        break
-            
-            # Vérifier si cette slide utilise des couches (layers)
-            layers = slide_config.get('layers', None)
-            
+            # Layers and slide_config already retrieved above
             if layers:
                 print(f"  🎨 Mode multi-couches détecté ({len(layers)} couche(s))")
-                # Composer les couches en une seule image
-                # Utiliser la résolution cible déjà calculée
-                image_bgr = compose_layers(layers, img_wd, img_ht, base_path)
+                # Composer les couches en une seule image (for non-layered animation path)
+                # Note: For layered animation, we pass layers directly
+                # image_bgr = compose_layers(layers, img_wd, img_ht, base_path)
             
             # Utiliser les paramètres de la slide ou les valeurs par défaut
             slide_skip_rate = slide_config.get('skip_rate', object_skip_rate)
             slide_duration = slide_config.get('duration', main_img_duration)
             
             # Pour les slides intermédiaires (pas la dernière), vérifier si une durée est spécifiée
-            is_last_image = (idx == len(image_paths))
+            is_last_image = (idx == num_items)
             if not is_last_image and 'duration' not in slide_config:
                 # Si pas de durée spécifiée pour slide intermédiaire, utiliser 0
                 slide_duration = 0
@@ -2717,26 +2960,9 @@ def main():
         print("="*50 + "\n")
         return
 
-    # --- Mode de génération vidéo ---
-    if not args.image_paths or len(args.image_paths) == 0:
-        parser.print_help()
-        print("\n❌ ERREUR: Au moins un chemin d'image est requis.")
-        return
-
-    # Vérifier que les images existent
-    valid_images = []
-    for img_path in args.image_paths:
-        if os.path.exists(img_path):
-            valid_images.append(img_path)
-        else:
-            print(f"⚠️ Avertissement: Image ignorée (introuvable): {img_path}")
-    
-    if not valid_images:
-        print("❌ Erreur: Aucune image valide fournie.")
-        return
-    
     # Charger la configuration personnalisée si fournie
     per_slide_config = None
+    has_layers_config = False
     if args.config:
         if not os.path.exists(args.config):
             print(f"❌ Erreur: Fichier de configuration introuvable: {args.config}")
@@ -2746,8 +2972,38 @@ def main():
             with open(args.config, 'r', encoding='utf-8') as f:
                 per_slide_config = json.load(f)
             print(f"✅ Configuration personnalisée chargée depuis: {args.config}")
+            
+            # Check if config has layers
+            if 'slides' in per_slide_config:
+                for slide_cfg in per_slide_config['slides']:
+                    if 'layers' in slide_cfg:
+                        has_layers_config = True
+                        break
         except Exception as e:
             print(f"❌ Erreur lors de la lecture du fichier de configuration: {e}")
+            return
+
+    # --- Mode de génération vidéo ---
+    # If config has layers, images are optional
+    if not args.image_paths or len(args.image_paths) == 0:
+        # Check if config file has layers - if so, that's OK
+        if not has_layers_config:
+            parser.print_help()
+            print("\n❌ ERREUR: Au moins un chemin d'image est requis.")
+            return
+        # Config file with layers exists, proceed without images
+        valid_images = []
+    else:
+        # Vérifier que les images existent
+        valid_images = []
+        for img_path in args.image_paths:
+            if os.path.exists(img_path):
+                valid_images.append(img_path)
+            else:
+                print(f"⚠️ Avertissement: Image ignorée (introuvable): {img_path}")
+        
+        if not valid_images and not has_layers_config:
+            print("❌ Erreur: Aucune image valide fournie.")
             return
 
     print("\n" + "="*50)
@@ -2767,14 +3023,6 @@ def main():
     print("="*50)
 
     # Traitement unique ou multiple
-    # Vérifier si la configuration contient des couches pour la première slide
-    has_layers_config = False
-    if per_slide_config and 'slides' in per_slide_config:
-        for slide_cfg in per_slide_config['slides']:
-            if 'layers' in slide_cfg:
-                has_layers_config = True
-                break
-    
     if len(valid_images) == 1 and not has_layers_config:
         # Une seule image sans configuration de couches - utiliser l'ancienne méthode
         def final_callback_cli(result):
