@@ -104,6 +104,64 @@ Opacité de la couche. 1.0 = complètement opaque, 0.0 = invisible.
 "opacity": 0.8  // 80% d'opacité (légèrement transparent)
 ```
 
+#### mode (optionnel, défaut: "draw")
+Mode de dessin de la couche. Détermine comment l'élément est affiché.
+
+**Valeurs possibles :**
+- `"draw"` : Mode normal avec animation de la main dessinant
+- `"eraser"` : Animation avec une gomme (pour effet d'effacement)
+- `"static"` : Affichage direct sans animation de dessin
+
+**Exemple :**
+```json
+"mode": "eraser"  // Utilise l'animation de gomme
+```
+
+#### entrance_animation (optionnel, défaut: null)
+Animation d'entrée appliquée quand la couche apparaît.
+
+**Propriétés :**
+- `type` : Type d'animation (`fade_in`, `slide_in_left`, `slide_in_right`, `slide_in_top`, `slide_in_bottom`, `zoom_in`, `none`)
+- `duration` : Durée en secondes (défaut: 0.5)
+
+**Exemple :**
+```json
+"entrance_animation": {
+  "type": "fade_in",
+  "duration": 1.0
+}
+```
+
+#### exit_animation (optionnel, défaut: null)
+Animation de sortie appliquée à la fin de la couche.
+
+**Propriétés :**
+- `type` : Type d'animation (`fade_out`, `slide_out_left`, `slide_out_right`, `slide_out_top`, `slide_out_bottom`, `zoom_out`, `none`)
+- `duration` : Durée en secondes (défaut: 0.5)
+
+**Exemple :**
+```json
+"exit_animation": {
+  "type": "zoom_out",
+  "duration": 0.8
+}
+```
+
+#### morph (optionnel, défaut: null)
+Morphing depuis la couche précédente pour une transition fluide.
+
+**Propriétés :**
+- `enabled` : Active le morphing (true/false)
+- `duration` : Durée en secondes
+
+**Exemple :**
+```json
+"morph": {
+  "enabled": true,
+  "duration": 0.5
+}
+```
+
 ## Exemples pratiques
 
 ### Exemple 1 : Logo + Texte sur fond
@@ -190,7 +248,78 @@ Opacité de la couche. 1.0 = complètement opaque, 0.0 = invisible.
 2. Deux flèches apparaissent rapidement
 3. Une étiquette apparaît très rapidement par-dessus
 
-### Exemple 3 : Slides multiples avec et sans couches
+### Exemple 3 : Modes avancés avec animations (NOUVEAU)
+
+```json
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 12,
+      "layers": [
+        {
+          "image_path": "scene.png",
+          "position": {"x": 0, "y": 0},
+          "z_index": 1,
+          "skip_rate": 10,
+          "mode": "draw"
+        },
+        {
+          "image_path": "error.png",
+          "position": {"x": 200, "y": 150},
+          "z_index": 2,
+          "skip_rate": 15,
+          "mode": "eraser",
+          "entrance_animation": {
+            "type": "fade_in",
+            "duration": 1.0
+          }
+        },
+        {
+          "image_path": "logo.png",
+          "position": {"x": 50, "y": 50},
+          "z_index": 3,
+          "scale": 0.3,
+          "mode": "static",
+          "entrance_animation": {
+            "type": "zoom_in",
+            "duration": 1.5
+          },
+          "exit_animation": {
+            "type": "fade_out",
+            "duration": 1.0
+          }
+        },
+        {
+          "image_path": "text.png",
+          "position": {"x": 300, "y": 400},
+          "z_index": 4,
+          "skip_rate": 12,
+          "mode": "draw",
+          "morph": {
+            "enabled": true,
+            "duration": 0.5
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Résultat :**
+1. La scène de fond est dessinée normalement avec la main
+2. Un élément "error" est effacé avec l'animation d'une gomme et apparaît en fondu
+3. Un logo apparaît statiquement (sans main) avec un effet zoom-in, puis disparaît en fondu
+4. Du texte apparaît avec un morphing fluide depuis la couche précédente
+
+**Détails des nouveautés :**
+- **Mode `eraser`** : Utilise l'image d'une gomme au lieu de la main pour créer un effet d'effacement
+- **Mode `static`** : Affiche l'image directement sans animation de dessin (idéal pour logos, watermarks)
+- **Entrance/Exit animations** : Ajoutent des effets d'apparition et de disparition
+- **Morph** : Crée une transition fluide en morphing entre deux couches
+
+### Exemple 4 : Slides multiples avec et sans couches
 
 ```json
 {
@@ -330,6 +459,42 @@ python whiteboard_animator.py image.png --get-split-lens
 2. **Formats d'image** : PNG recommandé pour la transparence
 3. **Taille des images** : Proportionnelle à la résolution cible pour de meilleurs résultats
 4. **Position** : Les coordonnées négatives ou hors canvas seront tronquées
+5. **Mode eraser** : L'image de la gomme doit exister dans `data/images/eraser.png`
+6. **Animations** : Les animations d'entrée/sortie augmentent la durée totale de la slide
+7. **Morphing** : Ne fonctionne qu'entre couches consécutives d'une même slide
+
+## Fonctionnalités avancées
+
+### Modes de dessin
+
+**Mode `draw` (défaut)** :
+- Animation classique avec la main qui dessine
+- Recommandé pour le contenu principal
+
+**Mode `eraser`** :
+- Utilise une gomme au lieu de la main
+- Idéal pour simuler un effet d'effacement ou de révélation
+- L'image de la gomme doit être présente dans `data/images/`
+
+**Mode `static`** :
+- Pas d'animation de dessin
+- L'image apparaît directement (avec animations d'entrée/sortie si configurées)
+- Idéal pour logos, watermarks, ou éléments décoratifs
+
+### Animations d'entrée et de sortie
+
+Les animations peuvent être combinées avec tous les modes :
+- **Entrée** : `fade_in`, `slide_in_*`, `zoom_in`
+- **Sortie** : `fade_out`, `slide_out_*`, `zoom_out`
+
+**Conseil** : Utilisez des animations courtes (0.5-1.5s) pour un effet professionnel.
+
+### Morphing entre couches
+
+Le morphing crée une transition fluide entre deux couches :
+- Active automatiquement entre la couche N-1 et N
+- Fonctionne mieux entre images de contenu similaire
+- Durée recommandée : 0.3-0.8 secondes
 
 ## Support et contributions
 
