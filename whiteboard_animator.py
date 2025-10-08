@@ -254,13 +254,285 @@ def draw_hand_on_img(
     return drawing
 
 
+def preprocess_eraser_image(eraser_path, eraser_mask_path):
+    """Load and pre-process the eraser image and its mask."""
+    eraser = cv2.imread(eraser_path)
+    eraser_mask = cv2.imread(eraser_mask_path, cv2.IMREAD_GRAYSCALE)
+    
+    if eraser is None or eraser_mask is None:
+        # Create default eraser if images don't exist
+        print("⚠️ Eraser images not found, using default hand")
+        return None, None, None, None, 0, 0
+    
+    top_left, bottom_right = get_extreme_coordinates(eraser_mask)
+    eraser = eraser[top_left[1] : bottom_right[1], top_left[0] : bottom_right[0]]
+    eraser_mask = eraser_mask[top_left[1] : bottom_right[1], top_left[0] : bottom_right[0]]
+    eraser_mask_inv = 255 - eraser_mask
+    
+    # Standardize eraser masks
+    eraser_mask = eraser_mask / 255
+    eraser_mask_inv = eraser_mask_inv / 255
+    
+    # Make eraser background black
+    eraser_bg_ind = np.where(eraser_mask == 0)
+    eraser[eraser_bg_ind] = [0, 0, 0]
+    
+    # Get eraser dimensions
+    eraser_ht, eraser_wd = eraser.shape[0], eraser.shape[1]
+    
+    return eraser, eraser_mask, eraser_mask_inv, eraser_bg_ind, eraser_ht, eraser_wd
+
+
+def draw_eraser_on_img(
+    drawing,
+    eraser,
+    drawing_coord_x,
+    drawing_coord_y,
+    eraser_mask_inv,
+    eraser_ht,
+    eraser_wd,
+    img_ht,
+    img_wd,
+):
+    """Draw (overlay) the eraser image on the 'drawing' image at given coordinates."""
+    remaining_ht = img_ht - drawing_coord_y
+    remaining_wd = img_wd - drawing_coord_x
+    
+    # Determine eraser size to crop to avoid exceeding image edges
+    crop_eraser_ht = min(remaining_ht, eraser_ht)
+    crop_eraser_wd = min(remaining_wd, eraser_wd)
+
+    eraser_cropped = eraser[:crop_eraser_ht, :crop_eraser_wd]
+    eraser_mask_inv_cropped = eraser_mask_inv[:crop_eraser_ht, :crop_eraser_wd]
+
+    # Coordinates for insertion
+    y_slice = slice(drawing_coord_y, drawing_coord_y + crop_eraser_ht)
+    x_slice = slice(drawing_coord_x, drawing_coord_x + crop_eraser_wd)
+
+    # Mask the area for the eraser (set background to 0 using inverted mask)
+    for i in range(3):  # For each color channel (B, G, R)
+        drawing[y_slice, x_slice][:, :, i] = (
+            drawing[y_slice, x_slice][:, :, i] * eraser_mask_inv_cropped
+        )
+
+    # Add the eraser image
+    drawing[y_slice, x_slice] = (
+        drawing[y_slice, x_slice]
+        + eraser_cropped
+    )
+    return drawing
+
+
+def apply_entrance_animation(frame, animation_config, frame_index, total_frames, frame_rate):
+    """Apply entrance animation to a frame.
+    
+    Args:
+        frame: The frame to animate (numpy array)
+        animation_config: Dict with animation parameters (type, duration, etc.)
+        frame_index: Current frame index in the animation
+        total_frames: Total number of frames in the animation
+        frame_rate: Frame rate of the video
+        
+    Returns:
+        Animated frame
+    """
+    if not animation_config or animation_config.get('type') == 'none':
+        return frame
+    
+    anim_type = animation_config.get('type', 'fade_in')
+    duration = animation_config.get('duration', 0.5)
+    anim_frames = int(duration * frame_rate)
+    
+    if frame_index >= anim_frames:
+        return frame
+    
+    progress = frame_index / anim_frames
+    
+    if anim_type == 'fade_in':
+        # Fade from white to image
+        white = np.ones_like(frame) * 255
+        return cv2.addWeighted(white, 1 - progress, frame, progress, 0)
+    
+    elif anim_type == 'slide_in_left':
+        # Slide in from left
+        h, w = frame.shape[:2]
+        offset = int(w * (1 - progress))
+        result = np.ones_like(frame) * 255
+        if offset < w:
+            result[:, offset:] = frame[:, :w-offset]
+        return result
+    
+    elif anim_type == 'slide_in_right':
+        # Slide in from right
+        h, w = frame.shape[:2]
+        offset = int(w * (1 - progress))
+        result = np.ones_like(frame) * 255
+        if offset < w:
+            result[:, :w-offset] = frame[:, offset:]
+        return result
+    
+    elif anim_type == 'slide_in_top':
+        # Slide in from top
+        h, w = frame.shape[:2]
+        offset = int(h * (1 - progress))
+        result = np.ones_like(frame) * 255
+        if offset < h:
+            result[offset:, :] = frame[:h-offset, :]
+        return result
+    
+    elif anim_type == 'slide_in_bottom':
+        # Slide in from bottom
+        h, w = frame.shape[:2]
+        offset = int(h * (1 - progress))
+        result = np.ones_like(frame) * 255
+        if offset < h:
+            result[:h-offset, :] = frame[offset:, :]
+        return result
+    
+    elif anim_type == 'zoom_in':
+        # Zoom in from center
+        h, w = frame.shape[:2]
+        scale = 0.5 + 0.5 * progress  # Start at 50% size
+        new_h, new_w = int(h * scale), int(w * scale)
+        resized = cv2.resize(frame, (new_w, new_h))
+        
+        result = np.ones_like(frame) * 255
+        y_offset = (h - new_h) // 2
+        x_offset = (w - new_w) // 2
+        result[y_offset:y_offset+new_h, x_offset:x_offset+new_w] = resized
+        return result
+    
+    return frame
+
+
+def apply_exit_animation(frame, animation_config, frame_index, total_frames, frame_rate):
+    """Apply exit animation to a frame.
+    
+    Args:
+        frame: The frame to animate (numpy array)
+        animation_config: Dict with animation parameters (type, duration, etc.)
+        frame_index: Current frame index in the animation (from start of exit)
+        total_frames: Total number of frames in the exit animation
+        frame_rate: Frame rate of the video
+        
+    Returns:
+        Animated frame
+    """
+    if not animation_config or animation_config.get('type') == 'none':
+        return frame
+    
+    anim_type = animation_config.get('type', 'fade_out')
+    duration = animation_config.get('duration', 0.5)
+    anim_frames = int(duration * frame_rate)
+    
+    if frame_index >= anim_frames:
+        # Animation complete, return white frame
+        return np.ones_like(frame) * 255
+    
+    progress = frame_index / anim_frames
+    
+    if anim_type == 'fade_out':
+        # Fade to white
+        white = np.ones_like(frame) * 255
+        return cv2.addWeighted(frame, 1 - progress, white, progress, 0)
+    
+    elif anim_type == 'slide_out_left':
+        # Slide out to left
+        h, w = frame.shape[:2]
+        offset = int(w * progress)
+        result = np.ones_like(frame) * 255
+        if offset < w:
+            result[:, :w-offset] = frame[:, offset:]
+        return result
+    
+    elif anim_type == 'slide_out_right':
+        # Slide out to right
+        h, w = frame.shape[:2]
+        offset = int(w * progress)
+        result = np.ones_like(frame) * 255
+        if offset < w:
+            result[:, offset:] = frame[:, :w-offset]
+        return result
+    
+    elif anim_type == 'slide_out_top':
+        # Slide out to top
+        h, w = frame.shape[:2]
+        offset = int(h * progress)
+        result = np.ones_like(frame) * 255
+        if offset < h:
+            result[:h-offset, :] = frame[offset:, :]
+        return result
+    
+    elif anim_type == 'slide_out_bottom':
+        # Slide out to bottom
+        h, w = frame.shape[:2]
+        offset = int(h * progress)
+        result = np.ones_like(frame) * 255
+        if offset < h:
+            result[offset:, :] = frame[:h-offset, :]
+        return result
+    
+    elif anim_type == 'zoom_out':
+        # Zoom out from center
+        h, w = frame.shape[:2]
+        scale = 1.0 + 0.5 * progress  # Grow to 150% size
+        new_h, new_w = int(h * scale), int(w * scale)
+        resized = cv2.resize(frame, (new_w, new_h))
+        
+        result = np.ones_like(frame) * 255
+        y_offset = (h - new_h) // 2
+        x_offset = (w - new_w) // 2
+        
+        # Crop to fit original size
+        y1 = max(0, -y_offset)
+        x1 = max(0, -x_offset)
+        y2 = y1 + h
+        x2 = x1 + w
+        
+        if y2 <= new_h and x2 <= new_w:
+            result = resized[y1:y2, x1:x2]
+        return result
+    
+    return frame
+
+
+def generate_morph_frames(frame1, frame2, num_frames):
+    """Generate morph transition frames between two frames.
+    
+    Args:
+        frame1: Starting frame
+        frame2: Ending frame
+        num_frames: Number of transition frames to generate
+        
+    Returns:
+        List of morphed frames
+    """
+    if num_frames <= 0:
+        return []
+    
+    morph_frames = []
+    for i in range(num_frames):
+        alpha = (i + 1) / (num_frames + 1)
+        morphed = cv2.addWeighted(frame1, 1 - alpha, frame2, alpha, 0)
+        morph_frames.append(morphed)
+    
+    return morph_frames
+
+
 def draw_masked_object(
-    variables, object_mask=None, skip_rate=5, black_pixel_threshold=10
+    variables, object_mask=None, skip_rate=5, black_pixel_threshold=10, mode='draw', 
+    eraser=None, eraser_mask_inv=None, eraser_ht=0, eraser_wd=0
 ):
     """
     Implémente la logique de dessin en quadrillage.
     Sépare l'image en blocs, sélectionne le bloc le plus proche à dessiner
     et enregistre la trame.
+    
+    Args:
+        mode: 'draw' for normal drawing with hand, 'eraser' for eraser mode, 'static' for no animation
+        eraser: Eraser image (for eraser mode)
+        eraser_mask_inv: Inverted eraser mask (for eraser mode)
+        eraser_ht, eraser_wd: Eraser dimensions
     """
     # print("Skip Rate: ", skip_rate)
     
@@ -333,22 +605,40 @@ def draw_masked_object(
         # Appliquer la tuile au cadre de dessin
         variables.drawn_frame[range_v_start:range_v_end, range_h_start:range_h_end] = original_tile
 
-        # Coordonnées pour le centre de la main
+        # Coordonnées pour le centre de la main/eraser
         hand_coord_x = range_h_start + int(tile_wd / 2)
         hand_coord_y = range_v_start + int(tile_ht / 2)
         
-        # Dessiner la main
-        drawn_frame_with_hand = draw_hand_on_img(
-            variables.drawn_frame.copy(),
-            variables.hand.copy(),
-            hand_coord_x,
-            hand_coord_y,
-            variables.hand_mask_inv.copy(),
-            variables.hand_ht,
-            variables.hand_wd,
-            variables.resize_ht,
-            variables.resize_wd,
-        )
+        # Dessiner la main ou l'eraser selon le mode
+        if mode == 'static':
+            # Mode statique: pas de main/eraser
+            drawn_frame_with_hand = variables.drawn_frame.copy()
+        elif mode == 'eraser' and eraser is not None:
+            # Mode eraser: utiliser l'image de l'eraser
+            drawn_frame_with_hand = draw_eraser_on_img(
+                variables.drawn_frame.copy(),
+                eraser.copy(),
+                hand_coord_x,
+                hand_coord_y,
+                eraser_mask_inv.copy(),
+                eraser_ht,
+                eraser_wd,
+                variables.resize_ht,
+                variables.resize_wd,
+            )
+        else:
+            # Mode normal: utiliser l'image de la main
+            drawn_frame_with_hand = draw_hand_on_img(
+                variables.drawn_frame.copy(),
+                variables.hand.copy(),
+                hand_coord_x,
+                hand_coord_y,
+                variables.hand_mask_inv.copy(),
+                variables.hand_ht,
+                variables.hand_wd,
+                variables.resize_ht,
+                variables.resize_wd,
+            )
 
         # Supprimer l'index sélectionné
         cut_black_indices = np.delete(cut_black_indices, selected_ind, axis=0)
@@ -521,6 +811,13 @@ def draw_layered_whiteboard_animations(
     variables.hand_mask = hand_mask
     variables.hand_mask_inv = hand_mask_inv
     
+    # Pré-traiter l'image de l'eraser
+    eraser_path = os.path.join(os.path.dirname(hand_path), 'eraser.png')
+    eraser_mask_path = os.path.join(os.path.dirname(hand_path), 'eraser-mask.png')
+    eraser, eraser_mask, eraser_mask_inv, _, eraser_ht, eraser_wd = preprocess_eraser_image(
+        eraser_path, eraser_mask_path
+    )
+    
     start_time = time.time()
     
     # Créer l'objet vidéo
@@ -621,11 +918,76 @@ def draw_layered_whiteboard_animations(
             layer_vars.video_object = variables.video_object
             layer_vars.drawn_frame = variables.drawn_frame.copy()
             
-            # Dessiner cette couche
-            draw_masked_object(
-                variables=layer_vars,
-                skip_rate=layer_skip_rate,
-            )
+            # Get layer mode and animations
+            layer_mode = layer.get('mode', 'draw')  # 'draw', 'eraser', or 'static'
+            entrance_anim = layer.get('entrance_animation', None)
+            exit_anim = layer.get('exit_animation', None)
+            morph_config = layer.get('morph', None)
+            
+            # Check if we need to morph from previous layer
+            if layer_idx > 0 and morph_config and morph_config.get('enabled', False):
+                # Generate morph frames from previous drawn frame to current layer
+                morph_duration = morph_config.get('duration', 0.5)
+                morph_frames_count = int(morph_duration * variables.frame_rate)
+                print(f"    🔄 Morphing from previous layer ({morph_frames_count} frames)...")
+                
+                # Use the current layer as target for morph
+                prev_frame = variables.drawn_frame.copy()
+                
+                # Create a preview of what this layer will look like
+                target_preview = prev_frame.copy()
+                if x2 > x1 and y2 > y1:
+                    if opacity < 1.0:
+                        target_region = target_preview[y1:y2, x1:x2]
+                        layer_region = layer_img_original[ly1:ly2, lx1:lx2]
+                        blended = cv2.addWeighted(target_region, 1 - opacity, layer_region, opacity, 0)
+                        target_preview[y1:y2, x1:x2] = blended
+                    else:
+                        target_preview[y1:y2, x1:x2] = layer_img_original[ly1:ly2, lx1:lx2]
+                
+                morph_frames = generate_morph_frames(prev_frame, target_preview, morph_frames_count)
+                for morph_frame in morph_frames:
+                    if variables.watermark_path:
+                        morph_frame = apply_watermark(
+                            morph_frame, variables.watermark_path,
+                            variables.watermark_position, variables.watermark_opacity,
+                            variables.watermark_scale
+                        )
+                    variables.video_object.write(morph_frame)
+                    variables.frames_written += 1
+            
+            # Entrance animation
+            entrance_frames = 0
+            if entrance_anim and entrance_anim.get('type') != 'none':
+                entrance_duration = entrance_anim.get('duration', 0.5)
+                entrance_frames = int(entrance_duration * variables.frame_rate)
+                print(f"    ▶️  Entrance animation: {entrance_anim.get('type')} ({entrance_frames} frames)")
+            
+            # Dessiner cette couche selon le mode
+            if layer_mode == 'static':
+                # Mode statique: afficher l'image directement sans animation de dessin
+                print(f"    📷 Mode statique (pas d'animation de dessin)")
+                layer_vars.drawn_frame = layer_full.copy()
+                # No drawing animation, frames_written stays 0 for this layer drawing
+            elif layer_mode == 'eraser' and eraser is not None:
+                # Mode eraser: utiliser l'eraser
+                print(f"    🧹 Mode eraser")
+                draw_masked_object(
+                    variables=layer_vars,
+                    skip_rate=layer_skip_rate,
+                    mode='eraser',
+                    eraser=eraser,
+                    eraser_mask_inv=eraser_mask_inv,
+                    eraser_ht=eraser_ht,
+                    eraser_wd=eraser_wd
+                )
+            else:
+                # Mode normal: dessiner avec la main
+                draw_masked_object(
+                    variables=layer_vars,
+                    skip_rate=layer_skip_rate,
+                    mode='draw'
+                )
             
             # Accumulate frame count from this layer
             variables.frames_written += layer_vars.frames_written
@@ -634,6 +996,46 @@ def draw_layered_whiteboard_animations(
             layer_mask = np.any(layer_full < 250, axis=2).astype(np.float32)
             layer_mask_3d = np.stack([layer_mask] * 3, axis=2)
             
+            # Apply entrance animation to drawn layer before blending
+            if entrance_anim and entrance_anim.get('type') != 'none':
+                entrance_duration = entrance_anim.get('duration', 0.5)
+                entrance_frames = int(entrance_duration * variables.frame_rate)
+                
+                # Generate entrance animation frames
+                for frame_idx in range(entrance_frames):
+                    # Start with current state
+                    anim_frame = variables.drawn_frame.copy()
+                    
+                    # Apply entrance animation to the new layer content
+                    layer_animated = apply_entrance_animation(
+                        layer_vars.drawn_frame,
+                        entrance_anim,
+                        frame_idx,
+                        entrance_frames,
+                        variables.frame_rate
+                    )
+                    
+                    # Blend animated layer with current frame
+                    if opacity < 1.0:
+                        layer_content = layer_animated * layer_mask_3d
+                        old_background = anim_frame * layer_mask_3d
+                        blended_layer = cv2.addWeighted(old_background, 1 - opacity, layer_content, opacity, 0)
+                        anim_frame = (layer_mask_3d * blended_layer + 
+                                     (1 - layer_mask_3d) * anim_frame).astype(np.uint8)
+                    else:
+                        anim_frame = np.where(layer_mask_3d > 0, layer_animated, anim_frame).astype(np.uint8)
+                    
+                    # Apply watermark and write frame
+                    if variables.watermark_path:
+                        anim_frame = apply_watermark(
+                            anim_frame, variables.watermark_path,
+                            variables.watermark_position, variables.watermark_opacity,
+                            variables.watermark_scale
+                        )
+                    variables.video_object.write(anim_frame)
+                    variables.frames_written += 1
+            
+            # Final blend of layer (no entrance animation or after animation completes)
             if opacity < 1.0:
                 # Blend only the layer's pixels
                 # Where layer has content: blend old background with new layer content
@@ -651,6 +1053,36 @@ def draw_layered_whiteboard_animations(
                                                 layer_vars.drawn_frame, 
                                                 variables.drawn_frame).astype(np.uint8)
             
+            # Apply exit animation after layer is complete (if this is the last layer or configured)
+            if exit_anim and exit_anim.get('type') != 'none':
+                exit_duration = exit_anim.get('duration', 0.5)
+                exit_frames = int(exit_duration * variables.frame_rate)
+                print(f"    ◀️  Exit animation: {exit_anim.get('type')} ({exit_frames} frames)")
+                
+                # Generate exit animation frames
+                for frame_idx in range(exit_frames):
+                    exit_frame = apply_exit_animation(
+                        variables.drawn_frame,
+                        exit_anim,
+                        frame_idx,
+                        exit_frames,
+                        variables.frame_rate
+                    )
+                    
+                    if variables.watermark_path:
+                        exit_frame = apply_watermark(
+                            exit_frame, variables.watermark_path,
+                            variables.watermark_position, variables.watermark_opacity,
+                            variables.watermark_scale
+                        )
+                    variables.video_object.write(exit_frame)
+                    variables.frames_written += 1
+                
+                # After exit animation, reset to white or keep final frame
+                # depending on whether there are more layers
+                if layer_idx < len(sorted_layers) - 1:
+                    # More layers coming, reset to white
+                    variables.drawn_frame = base_canvas.copy()
             # Apply camera transformation if specified
             camera_config = layer.get('camera', None)
             if camera_config:
