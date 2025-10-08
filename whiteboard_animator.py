@@ -10,6 +10,8 @@ import cv2
 import numpy as np
 import argparse
 from PIL import Image, ImageDraw, ImageFont
+from fontTools.ttLib import TTFont
+from fontTools.pens.recordingPen import RecordingPen
 # from kivy.clock import Clock # COMMENTÉ: Remplacé par un appel direct pour CLI
 
 # --- Variables Globales ---
@@ -193,6 +195,298 @@ def render_text_to_image(text_config, target_width, target_height):
     img_bgr = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
     
     return img_bgr
+
+
+def extract_character_paths(text, font_path, font_size):
+    """
+    Extract vector paths from font characters.
+    
+    Args:
+        text: Text to extract paths for
+        font_path: Path to TTF/OTF font file
+        font_size: Font size in points
+        
+    Returns:
+        List of character path data with drawing commands
+    """
+    try:
+        font = TTFont(font_path)
+        glyf_table = font['glyf'] if 'glyf' in font else None
+        cmap = font.getBestCmap()
+        
+        if not glyf_table or not cmap:
+            return None
+            
+        char_paths = []
+        
+        for char in text:
+            if char in ['\n', ' ', '\t']:
+                char_paths.append({'char': char, 'paths': [], 'is_space': True})
+                continue
+                
+            char_code = ord(char)
+            if char_code not in cmap:
+                continue
+                
+            glyph_name = cmap[char_code]
+            glyph = glyf_table[glyph_name]
+            
+            # Use RecordingPen to capture drawing commands
+            pen = RecordingPen()
+            glyph.draw(pen, glyf_table)
+            
+            char_paths.append({
+                'char': char,
+                'paths': pen.value,
+                'is_space': False
+            })
+        
+        return char_paths
+    except Exception as e:
+        print(f"  ⚠️ Could not extract paths from font: {e}")
+        return None
+
+
+def convert_glyph_paths_to_points(char_paths, font_size, x_offset, y_offset, target_height):
+    """
+    Convert font glyph paths to screen coordinates for drawing.
+    
+    Args:
+        char_paths: Character path data from extract_character_paths
+        font_size: Font size in pixels
+        x_offset: Horizontal offset for positioning
+        y_offset: Vertical offset for positioning
+        target_height: Canvas height for coordinate transformation
+        
+    Returns:
+        List of drawing segments (sequences of points)
+    """
+    drawing_segments = []
+    current_x = x_offset
+    
+    # Scale factor from font units to pixels
+    scale = font_size / 1000.0  # Typical font unit is 1000 per em
+    
+    for char_data in char_paths:
+        if char_data.get('is_space', False):
+            if char_data['char'] == ' ':
+                current_x += font_size * 0.3  # Space width
+            elif char_data['char'] == '\n':
+                # Line breaks handled at higher level
+                pass
+            continue
+            
+        paths = char_data.get('paths', [])
+        char_segments = []
+        
+        current_segment = []
+        for command_type, coords in paths:
+            if command_type == 'moveTo':
+                # Start new segment
+                if current_segment:
+                    char_segments.append(current_segment)
+                    current_segment = []
+                # coords is a tuple of tuples: ((x, y),)
+                point = coords[0]
+                x, y = point
+                # Transform coordinates
+                screen_x = int(current_x + x * scale)
+                screen_y = int(y_offset + (target_height * 0.7 - y * scale))
+                current_segment.append((screen_x, screen_y))
+                
+            elif command_type == 'lineTo':
+                point = coords[0]
+                x, y = point
+                screen_x = int(current_x + x * scale)
+                screen_y = int(y_offset + (target_height * 0.7 - y * scale))
+                current_segment.append((screen_x, screen_y))
+                
+            elif command_type == 'qCurveTo':
+                # Quadratic bezier curve - coords is a tuple of points
+                for point in coords:
+                    if isinstance(point, tuple) and len(point) == 2:
+                        x, y = point
+                        screen_x = int(current_x + x * scale)
+                        screen_y = int(y_offset + (target_height * 0.7 - y * scale))
+                        current_segment.append((screen_x, screen_y))
+                        
+            elif command_type == 'closePath':
+                if current_segment and len(current_segment) > 1:
+                    char_segments.append(current_segment)
+                    current_segment = []
+        
+        if current_segment:
+            char_segments.append(current_segment)
+            
+        drawing_segments.extend(char_segments)
+        
+        # Advance x position for next character
+        # Approximate character width
+        if char_segments:
+            max_x = max(pt[0] for seg in char_segments for pt in seg)
+            min_x = min(pt[0] for seg in char_segments for pt in seg)
+            current_x = max_x + (font_size * 0.1)  # Small gap between chars
+        else:
+            current_x += font_size * 0.5
+    
+    return drawing_segments
+
+
+def draw_svg_path_handwriting(
+    variables, skip_rate=5, mode='draw',
+    eraser=None, eraser_mask_inv=None, eraser_ht=0, eraser_wd=0,
+    text_config=None
+):
+    """
+    Draw text with SVG path-based handwriting animation.
+    Follows actual character stroke order like VideoScribe.
+    
+    This implements the VideoScribe-style approach:
+    1. Text is converted to vector paths
+    2. Paths are drawn in sequence with proper stroke order
+    3. Progressive masking reveals text as it's drawn
+    4. Hand follows the actual character contours
+    
+    Args:
+        variables: AllVariables object with image data
+        skip_rate: Frame skip rate for animation speed
+        mode: 'draw' for normal drawing, 'eraser' for eraser mode
+        text_config: Optional text configuration for path extraction
+    """
+    if mode == 'eraser':
+        variables.drawn_frame[:, :, :] = variables.img
+    
+    # Try to extract paths if text_config is provided
+    use_path_based = False
+    drawing_segments = []
+    
+    if text_config:
+        text = text_config.get('text', '')
+        font_name = text_config.get('font', 'Arial')
+        font_size = text_config.get('size', 32)
+        
+        # Try to find font file
+        font_path = None
+        try:
+            # Try to load font to get path
+            temp_font = ImageFont.truetype(font_name, font_size)
+            # Get font path from PIL font
+            if hasattr(temp_font, 'path'):
+                font_path = temp_font.path
+            else:
+                # Try common font locations
+                common_paths = [
+                    f"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                    f"/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+                    f"C:\\Windows\\Fonts\\arial.ttf",
+                ]
+                for path in common_paths:
+                    if os.path.exists(path):
+                        font_path = path
+                        break
+        except:
+            pass
+        
+        # Try to extract character paths
+        if font_path and os.path.exists(font_path):
+            char_paths = extract_character_paths(text, font_path, font_size)
+            if char_paths:
+                # Convert to drawing segments
+                x_offset = variables.resize_wd // 2 - (len(text) * font_size) // 4
+                y_offset = variables.resize_ht // 2 - font_size // 2
+                drawing_segments = convert_glyph_paths_to_points(
+                    char_paths, font_size, x_offset, y_offset, variables.resize_ht
+                )
+                if drawing_segments:
+                    use_path_based = True
+                    print(f"  ✨ Using SVG path-based drawing ({len(drawing_segments)} segments)")
+    
+    # If path-based extraction failed, fall back to column-based
+    if not use_path_based:
+        print(f"  📝 Using column-based drawing (SVG extraction not available)")
+        # Fall back to existing column-based method
+        draw_text_handwriting(
+            variables, skip_rate, mode,
+            eraser, eraser_mask_inv, eraser_ht, eraser_wd
+        )
+        return
+    
+    # Draw using path-based approach
+    counter = 0
+    for seg_idx, segment in enumerate(drawing_segments):
+        if len(segment) < 2:
+            continue
+            
+        # Draw this path segment
+        for i in range(len(segment) - 1):
+            pt1 = segment[i]
+            pt2 = segment[i + 1]
+            
+            # Clip coordinates to image bounds
+            pt1 = (max(0, min(pt1[0], variables.resize_wd - 1)), 
+                   max(0, min(pt1[1], variables.resize_ht - 1)))
+            pt2 = (max(0, min(pt2[0], variables.resize_wd - 1)), 
+                   max(0, min(pt2[1], variables.resize_ht - 1)))
+            
+            # Draw line on the canvas
+            if mode == 'eraser':
+                cv2.line(variables.drawn_frame, pt1, pt2, (255, 255, 255), 2)
+            else:
+                # Get color from original image at this location
+                try:
+                    color = variables.img[pt1[1], pt1[0]].tolist()
+                except:
+                    color = [0, 0, 0]
+                cv2.line(variables.drawn_frame, pt1, pt2, color, 2)
+            
+            # Hand position at current point
+            hand_coord_x, hand_coord_y = pt2
+            
+            # Draw hand
+            if mode == 'static':
+                drawn_frame_with_hand = variables.drawn_frame.copy()
+            elif mode == 'eraser' and eraser is not None:
+                drawn_frame_with_hand = draw_eraser_on_img(
+                    variables.drawn_frame.copy(),
+                    eraser.copy(),
+                    hand_coord_x,
+                    hand_coord_y,
+                    eraser_mask_inv.copy(),
+                    eraser_ht,
+                    eraser_wd,
+                    variables.resize_ht,
+                    variables.resize_wd,
+                )
+            else:
+                drawn_frame_with_hand = draw_hand_on_img(
+                    variables.drawn_frame.copy(),
+                    variables.hand.copy(),
+                    hand_coord_x,
+                    hand_coord_y,
+                    variables.hand_mask_inv.copy(),
+                    variables.hand_ht,
+                    variables.hand_wd,
+                    variables.resize_ht,
+                    variables.resize_wd,
+                )
+            
+            counter += 1
+            if counter % skip_rate == 0:
+                if variables.watermark_path:
+                    drawn_frame_with_hand = apply_watermark(
+                        drawn_frame_with_hand,
+                        variables.watermark_path,
+                        variables.watermark_position,
+                        variables.watermark_opacity,
+                        variables.watermark_scale
+                    )
+                
+                variables.video_object.write(drawn_frame_with_hand)
+                variables.frames_written += 1
+    
+    # Final reveal - overlay complete image
+    if mode != 'eraser':
+        variables.drawn_frame[:, :, :] = variables.img
 
 
 def euc_dist(arr1, point):
@@ -1400,14 +1694,16 @@ def draw_layered_whiteboard_animations(
                 print(f"    🧹 Mode eraser")
                 # Use text-specific drawing for text layers, tile-based for images
                 if layer_type == 'text':
-                    draw_text_handwriting(
+                    text_config = layer.get('text_config', {})
+                    draw_svg_path_handwriting(
                         variables=layer_vars,
                         skip_rate=layer_skip_rate,
                         mode='eraser',
                         eraser=eraser,
                         eraser_mask_inv=eraser_mask_inv,
                         eraser_ht=eraser_ht,
-                        eraser_wd=eraser_wd
+                        eraser_wd=eraser_wd,
+                        text_config=text_config
                     )
                 else:
                     draw_masked_object(
@@ -1424,10 +1720,13 @@ def draw_layered_whiteboard_animations(
                 # Use text-specific drawing for text layers, tile-based for images
                 if layer_type == 'text':
                     print(f"    ✍️  Mode handwriting (text)")
-                    draw_text_handwriting(
+                    # Try SVG path-based drawing first, fall back to column-based
+                    text_config = layer.get('text_config', {})
+                    draw_svg_path_handwriting(
                         variables=layer_vars,
                         skip_rate=layer_skip_rate,
-                        mode='draw'
+                        mode='draw',
+                        text_config=text_config
                     )
                 else:
                     draw_masked_object(
