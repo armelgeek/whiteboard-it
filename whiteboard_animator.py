@@ -365,6 +365,192 @@ def draw_whiteboard_animations(
     variables.video_object.release()
 
 
+def draw_layered_whiteboard_animations(
+    layers_config, hand_path, hand_mask_path, save_video_path, variables, base_path="."
+):
+    """Dessine une animation avec plusieurs couches, chacune avec son propre skip_rate.
+    
+    Args:
+        layers_config: Liste de configurations de couches
+        hand_path: Chemin vers l'image de la main
+        hand_mask_path: Chemin vers le masque de la main
+        save_video_path: Chemin de sauvegarde de la vidéo
+        variables: Objet AllVariables contenant les paramètres
+        base_path: Chemin de base pour résoudre les chemins relatifs
+    """
+    # Trier les couches par z_index
+    sorted_layers = sorted(layers_config, key=lambda x: x.get('z_index', 0))
+    
+    # Pré-traiter l'image de la main
+    hand = cv2.imread(hand_path)
+    hand_mask = cv2.imread(hand_mask_path, cv2.IMREAD_GRAYSCALE)
+    top_left, bottom_right = get_extreme_coordinates(hand_mask)
+    hand = hand[top_left[1] : bottom_right[1], top_left[0] : bottom_right[0]]
+    hand_mask = hand_mask[top_left[1] : bottom_right[1], top_left[0] : bottom_right[0]]
+    hand_mask_inv = 255 - hand_mask
+    hand_mask = hand_mask / 255
+    hand_mask_inv = hand_mask_inv / 255
+    hand_bg_ind = np.where(hand_mask == 0)
+    hand[hand_bg_ind] = [0, 0, 0]
+    hand_ht, hand_wd = hand.shape[0], hand.shape[1]
+    
+    variables.hand_ht = hand_ht
+    variables.hand_wd = hand_wd
+    variables.hand = hand
+    variables.hand_mask = hand_mask
+    variables.hand_mask_inv = hand_mask_inv
+    
+    start_time = time.time()
+    
+    # Créer l'objet vidéo
+    if platform == "android":
+        fourcc = cv2.VideoWriter_fourcc(*"MJPG")
+    else:
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    
+    variables.video_object = cv2.VideoWriter(
+        save_video_path,
+        fourcc,
+        variables.frame_rate,
+        (variables.resize_wd, variables.resize_ht),
+    )
+    
+    # Créer un canvas blanc de base
+    base_canvas = np.ones((variables.resize_ht, variables.resize_wd, 3), dtype=np.uint8) * 255
+    variables.drawn_frame = base_canvas.copy()
+    
+    # Initialiser les données d'animation si export JSON est activé
+    if variables.export_json:
+        variables.animation_data = {
+            "frames_written": [],
+            "layer_info": []
+        }
+    
+    # Dessiner chaque couche séquentiellement
+    for layer_idx, layer in enumerate(sorted_layers):
+        print(f"  🖌️ Dessin de la couche {layer_idx + 1}/{len(sorted_layers)}: " + 
+              f"z_index={layer.get('z_index', 0)}")
+        
+        try:
+            # Charger l'image de la couche
+            image_path = layer.get('image_path', '')
+            if not os.path.isabs(image_path):
+                image_path = os.path.join(base_path, image_path)
+            
+            if not os.path.exists(image_path):
+                print(f"    ⚠️ Image de couche introuvable: {image_path}")
+                continue
+            
+            layer_img_original = cv2.imread(image_path)
+            if layer_img_original is None:
+                print(f"    ⚠️ Impossible de lire l'image: {image_path}")
+                continue
+            
+            # Appliquer l'échelle
+            scale = layer.get('scale', 1.0)
+            if scale != 1.0:
+                new_width = int(layer_img_original.shape[1] * scale)
+                new_height = int(layer_img_original.shape[0] * scale)
+                layer_img_original = cv2.resize(layer_img_original, (new_width, new_height))
+            
+            # Obtenir position et opacité
+            position = layer.get('position', {'x': 0, 'y': 0})
+            x_offset = position.get('x', 0)
+            y_offset = position.get('y', 0)
+            opacity = layer.get('opacity', 1.0)
+            layer_skip_rate = layer.get('skip_rate', variables.object_skip_rate)
+            
+            # Créer une image complète avec la couche positionnée
+            layer_full = base_canvas.copy()
+            layer_h, layer_w = layer_img_original.shape[:2]
+            
+            # Calculer les limites pour copier la couche
+            x1 = max(0, x_offset)
+            y1 = max(0, y_offset)
+            x2 = min(variables.resize_wd, x_offset + layer_w)
+            y2 = min(variables.resize_ht, y_offset + layer_h)
+            
+            lx1 = max(0, -x_offset)
+            ly1 = max(0, -y_offset)
+            lx2 = lx1 + (x2 - x1)
+            ly2 = ly1 + (y2 - y1)
+            
+            if x2 > x1 and y2 > y1:
+                layer_full[y1:y2, x1:x2] = layer_img_original[ly1:ly2, lx1:lx2]
+            
+            # Pré-traiter cette couche pour l'animation
+            layer_vars = AllVariables(
+                frame_rate=variables.frame_rate,
+                resize_wd=variables.resize_wd,
+                resize_ht=variables.resize_ht,
+                split_len=variables.split_len,
+                object_skip_rate=layer_skip_rate,
+                bg_object_skip_rate=variables.bg_object_skip_rate,
+                end_gray_img_duration_in_sec=0,  # Pas de pause entre les couches
+                export_json=False,  # Géré globalement
+                watermark_path=None  # Pas de watermark sur chaque couche
+            )
+            
+            layer_vars = preprocess_image(img=layer_full, variables=layer_vars)
+            layer_vars.hand_ht = hand_ht
+            layer_vars.hand_wd = hand_wd
+            layer_vars.hand = hand
+            layer_vars.hand_mask = hand_mask
+            layer_vars.hand_mask_inv = hand_mask_inv
+            layer_vars.video_object = variables.video_object
+            layer_vars.drawn_frame = variables.drawn_frame.copy()
+            
+            # Dessiner cette couche
+            draw_masked_object(
+                variables=layer_vars,
+                skip_rate=layer_skip_rate,
+            )
+            
+            # Mettre à jour le canvas avec la couche dessinée (appliquer l'opacité)
+            if opacity < 1.0:
+                variables.drawn_frame = cv2.addWeighted(
+                    variables.drawn_frame, 1 - opacity, layer_vars.drawn_frame, opacity, 0
+                )
+            else:
+                variables.drawn_frame = layer_vars.drawn_frame.copy()
+            
+            # Enregistrer les infos de la couche pour l'export JSON
+            if variables.export_json:
+                variables.animation_data["layer_info"].append({
+                    "layer_index": layer_idx,
+                    "image_path": layer.get('image_path', ''),
+                    "position": position,
+                    "z_index": layer.get('z_index', 0),
+                    "scale": scale,
+                    "opacity": opacity,
+                    "skip_rate": layer_skip_rate
+                })
+            
+        except Exception as e:
+            print(f"    ❌ Erreur lors du dessin de la couche: {e}")
+            continue
+    
+    # Afficher l'image finale composée pendant la durée spécifiée
+    for i in range(variables.frame_rate * variables.end_gray_img_duration_in_sec):
+        final_frame = variables.drawn_frame.copy()
+        # Appliquer le watermark sur l'image finale uniquement
+        if variables.watermark_path:
+            final_frame = apply_watermark(
+                final_frame,
+                variables.watermark_path,
+                variables.watermark_position,
+                variables.watermark_opacity,
+                variables.watermark_scale
+            )
+        variables.video_object.write(final_frame)
+    
+    end_time = time.time()
+    print(f"  ⏱️ Temps de dessin des couches: {end_time - start_time:.2f} secondes")
+    
+    # Fermer l'objet vidéo
+    variables.video_object.release()
+
+
 def export_animation_json(variables, json_path):
     """Exporte les données d'animation au format JSON."""
     if not variables.animation_data:
@@ -655,6 +841,109 @@ def common_divisors(num1, num2):
         if num1 % i == 0 and num2 % i == 0:
             common_divs.append(i)
     return common_divs
+
+
+def compose_layers(layers_config, target_width, target_height, base_path="."):
+    """Compose plusieurs couches d'images en une seule image.
+    
+    Args:
+        layers_config: Liste de configurations de couches avec:
+            - image_path: chemin vers l'image
+            - position: dict avec x, y
+            - z_index: ordre de superposition
+            - scale: échelle de l'image (optionnel, défaut 1.0)
+            - opacity: opacité de la couche (optionnel, défaut 1.0)
+        target_width: largeur du canvas cible
+        target_height: hauteur du canvas cible
+        base_path: chemin de base pour résoudre les chemins relatifs
+    
+    Returns:
+        Image composée (numpy array BGR)
+    """
+    # Créer un canvas blanc
+    canvas = np.ones((target_height, target_width, 3), dtype=np.uint8) * 255
+    
+    # Trier les couches par z_index (du plus petit au plus grand)
+    sorted_layers = sorted(layers_config, key=lambda x: x.get('z_index', 0))
+    
+    print(f"  📐 Composition de {len(sorted_layers)} couche(s)...")
+    
+    for layer in sorted_layers:
+        try:
+            # Résoudre le chemin de l'image
+            image_path = layer.get('image_path', '')
+            if not os.path.isabs(image_path):
+                image_path = os.path.join(base_path, image_path)
+            
+            if not os.path.exists(image_path):
+                print(f"    ⚠️ Image de couche introuvable: {image_path}")
+                continue
+            
+            # Lire l'image de la couche
+            layer_img = cv2.imread(image_path)
+            if layer_img is None:
+                print(f"    ⚠️ Impossible de lire l'image: {image_path}")
+                continue
+            
+            # Appliquer l'échelle si spécifiée
+            scale = layer.get('scale', 1.0)
+            if scale != 1.0:
+                new_width = int(layer_img.shape[1] * scale)
+                new_height = int(layer_img.shape[0] * scale)
+                layer_img = cv2.resize(layer_img, (new_width, new_height))
+            
+            # Obtenir la position
+            position = layer.get('position', {'x': 0, 'y': 0})
+            x = position.get('x', 0)
+            y = position.get('y', 0)
+            
+            # Obtenir l'opacité
+            opacity = layer.get('opacity', 1.0)
+            opacity = max(0.0, min(1.0, opacity))  # Limiter entre 0 et 1
+            
+            # Calculer les dimensions de la région à copier
+            layer_h, layer_w = layer_img.shape[:2]
+            
+            # S'assurer que la couche reste dans les limites du canvas
+            x1 = max(0, x)
+            y1 = max(0, y)
+            x2 = min(target_width, x + layer_w)
+            y2 = min(target_height, y + layer_h)
+            
+            # Calculer les coordonnées correspondantes dans l'image de la couche
+            lx1 = max(0, -x)
+            ly1 = max(0, -y)
+            lx2 = lx1 + (x2 - x1)
+            ly2 = ly1 + (y2 - y1)
+            
+            # Vérifier qu'il y a une région valide à copier
+            if x2 <= x1 or y2 <= y1 or lx2 <= lx1 or ly2 <= ly1:
+                print(f"    ⚠️ Couche hors limites: {os.path.basename(image_path)}")
+                continue
+            
+            # Copier la région de la couche sur le canvas avec opacité
+            layer_region = layer_img[ly1:ly2, lx1:lx2]
+            canvas_region = canvas[y1:y2, x1:x2]
+            
+            if opacity < 1.0:
+                # Mélanger avec opacité
+                canvas[y1:y2, x1:x2] = cv2.addWeighted(
+                    canvas_region, 1 - opacity, layer_region, opacity, 0
+                )
+            else:
+                # Copie directe
+                canvas[y1:y2, x1:x2] = layer_region
+            
+            z_idx = layer.get('z_index', 0)
+            print(f"    ✓ Couche appliquée: {os.path.basename(image_path)} " + 
+                  f"(z:{z_idx}, pos:{x},{y}, scale:{scale:.2f}, opacity:{opacity:.2f})")
+        
+        except Exception as e:
+            print(f"    ❌ Erreur lors de l'application de la couche: {e}")
+            continue
+    
+    return canvas
+
 
 
 def ffmpeg_convert(source_vid, dest_vid, platform="linux", crf=18):
@@ -1162,6 +1451,15 @@ def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate
                         slide_config = slide_cfg
                         break
             
+            # Vérifier si cette slide utilise des couches (layers)
+            layers = slide_config.get('layers', None)
+            
+            if layers:
+                print(f"  🎨 Mode multi-couches détecté ({len(layers)} couche(s))")
+                # Composer les couches en une seule image
+                # Utiliser la résolution cible déjà calculée
+                image_bgr = compose_layers(layers, img_wd, img_ht, base_path)
+            
             # Utiliser les paramètres de la slide ou les valeurs par défaut
             slide_skip_rate = slide_config.get('skip_rate', object_skip_rate)
             slide_duration = slide_config.get('duration', main_img_duration)
@@ -1194,10 +1492,17 @@ def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate
                 watermark_opacity=watermark_opacity, watermark_scale=watermark_scale
             )
             
-            # Générer l'animation
-            draw_whiteboard_animations(
-                image_bgr, mask_path, hand_path, hand_mask_path, save_video_path, variables
-            )
+            # Générer l'animation (avec ou sans couches)
+            if layers:
+                # Animation multi-couches
+                draw_layered_whiteboard_animations(
+                    layers, hand_path, hand_mask_path, save_video_path, variables, base_path
+                )
+            else:
+                # Animation simple d'une seule image
+                draw_whiteboard_animations(
+                    image_bgr, mask_path, hand_path, hand_mask_path, save_video_path, variables
+                )
             
             # Export JSON si demandé
             if export_json:
@@ -1521,8 +1826,16 @@ def main():
     print("="*50)
 
     # Traitement unique ou multiple
-    if len(valid_images) == 1:
-        # Une seule image - utiliser l'ancienne méthode
+    # Vérifier si la configuration contient des couches pour la première slide
+    has_layers_config = False
+    if per_slide_config and 'slides' in per_slide_config:
+        for slide_cfg in per_slide_config['slides']:
+            if 'layers' in slide_cfg:
+                has_layers_config = True
+                break
+    
+    if len(valid_images) == 1 and not has_layers_config:
+        # Une seule image sans configuration de couches - utiliser l'ancienne méthode
         def final_callback_cli(result):
             """Fonction de rappel appelée à la fin de la génération."""
             if result["status"]:

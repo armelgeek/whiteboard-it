@@ -5,9 +5,10 @@ Application de création d'animations de type "dessin sur tableau blanc" (whiteb
 ## Fonctionnalités
 
 - ✅ Génération de vidéos d'animation de dessin à partir d'images
-- ✅ **Qualité vidéo améliorée** - CRF ajustable pour une qualité optimale (NOUVEAU)
-- ✅ **Export multi-formats** - Support 1:1, 16:9, 9:16 en HD (NOUVEAU)
-- ✅ **Filigrane (watermark)** - Ajout de logo/texte avec position et opacité personnalisables (NOUVEAU)
+- ✅ **Couches multiples (layers)** - Superposition d'images sur une même slide avec hiérarchie (NOUVEAU)
+- ✅ **Qualité vidéo améliorée** - CRF ajustable pour une qualité optimale
+- ✅ **Export multi-formats** - Support 1:1, 16:9, 9:16 en HD
+- ✅ **Filigrane (watermark)** - Ajout de logo/texte avec position et opacité personnalisables
 - ✅ **Support de plusieurs images avec combinaison automatique**
 - ✅ **Transitions entre slides** (fade, wipe, push, iris)
 - ✅ Personnalisation des paramètres (FPS, vitesse, grille)
@@ -299,6 +300,81 @@ Ce fichier de configuration :
 - Ajoute une pause de 2 secondes après la première slide avant la transition fade
 - Ajoute une pause de 1.5 secondes après la deuxième slide avant la transition iris
 
+### Utilisation des couches multiples (layers) (NOUVEAU)
+
+Les couches permettent de superposer plusieurs images sur une même slide, chacune avec sa position, son ordre de superposition (z-index) et sa vitesse de dessin.
+
+Créez un fichier `layers_config.json` :
+
+```json
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 4,
+      "layers": [
+        {
+          "image_path": "background.png",
+          "position": {"x": 0, "y": 0},
+          "z_index": 1,
+          "skip_rate": 5
+        },
+        {
+          "image_path": "logo.png",
+          "position": {"x": 50, "y": 50},
+          "z_index": 2,
+          "skip_rate": 15,
+          "scale": 0.3,
+          "opacity": 0.9
+        },
+        {
+          "image_path": "text.png",
+          "position": {"x": 200, "y": 400},
+          "z_index": 3,
+          "skip_rate": 20,
+          "opacity": 0.8
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "duration": 3,
+      "skip_rate": 10
+    }
+  ],
+  "transitions": [
+    {
+      "after_slide": 0,
+      "type": "fade",
+      "duration": 0.5
+    }
+  ]
+}
+```
+
+Puis utilisez-le (vous devez toujours fournir au moins une image en ligne de commande) :
+
+```bash
+# L'image placeholder.png définit le nombre de slides mais sera ignorée pour la slide 0
+python whiteboard_animator.py placeholder.png slide2.png --config layers_config.json
+```
+
+**Fonctionnalités des couches :**
+- **position** : Positionnement précis (x, y en pixels)
+- **z_index** : Ordre de superposition (plus grand = au-dessus)
+- **scale** : Échelle de l'image (0.5 = 50%, 1.0 = taille originale)
+- **opacity** : Transparence (0.0 = invisible, 1.0 = opaque)
+- **skip_rate** : Vitesse de dessin individuelle pour chaque couche
+
+Les couches sont dessinées séquentiellement selon leur z_index, permettant de créer des animations complexes avec plusieurs éléments apparaissant l'un après l'autre sur la même scène.
+
+**Cas d'usage :**
+- **Compositions complexes** : Logo + texte + éléments graphiques sur un même fond
+- **Animations par étapes** : Dessiner d'abord le fond, puis ajouter des éléments progressivement
+- **Créations style "Insta Doodle"** : Superposition d'images avec positions et timing personnalisés
+
+📖 **Pour plus de détails, consultez le [Guide complet des couches (LAYERS_GUIDE.md)](LAYERS_GUIDE.md)**
+
 
 # Avec transition de type "push left" et durée personnalisée
 python whiteboard_animator.py slide1.png slide2.png --transition push_left --transition-duration 1.0
@@ -334,9 +410,20 @@ whiteboard-it/
 ├── examples/                # Scripts d'exemple
 │   ├── use_animation_data.py
 │   └── README.md
-├── EXPORT_FORMAT.md         # Documentation du format JSON
+├── CONFIG_FORMAT.md         # Documentation du format de configuration
+├── EXPORT_FORMAT.md         # Documentation du format JSON d'export
+├── LAYERS_GUIDE.md          # Guide complet des couches (layers)
+├── TRANSITIONS.md           # Documentation des transitions
 └── README.md               # Ce fichier
 ```
+
+## Documentation
+
+- **[CONFIG_FORMAT.md](CONFIG_FORMAT.md)** - Format de configuration JSON pour personnaliser les slides
+- **[LAYERS_GUIDE.md](LAYERS_GUIDE.md)** - Guide complet pour utiliser les couches multiples
+- **[EXPORT_FORMAT.md](EXPORT_FORMAT.md)** - Format des données d'animation exportées
+- **[TRANSITIONS.md](TRANSITIONS.md)** - Documentation détaillée des transitions
+- **[examples/README.md](examples/README.md)** - Exemples d'utilisation des données JSON
 
 ## Licence
 
