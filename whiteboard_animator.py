@@ -580,14 +580,15 @@ def generate_transition_frames(frame1, frame2, transition_type, num_frames, fps)
     return transition_frames
 
 
-def concatenate_videos(video_paths, output_path, transition_type='none', transition_duration=0.5):
+def concatenate_videos(video_paths, output_path, transition_type='none', transition_duration=0.5, per_slide_transitions=None):
     """Concatène plusieurs vidéos en une seule vidéo finale avec transitions optionnelles.
     
     Args:
         video_paths: Liste des chemins des vidéos à concaténer
         output_path: Chemin de sortie pour la vidéo combinée
-        transition_type: Type de transition ('none', 'fade', 'wipe', 'push_left', 'push_right', 'iris')
-        transition_duration: Durée de la transition en secondes
+        transition_type: Type de transition par défaut ('none', 'fade', 'wipe', 'push_left', 'push_right', 'iris')
+        transition_duration: Durée de la transition en secondes (par défaut)
+        per_slide_transitions: Liste de dicts avec configs de transition par slide
     """
     try:
         import av
@@ -644,6 +645,44 @@ def concatenate_videos(video_paths, output_path, transition_type='none', transit
             if i > 0 and last_frame is not None and len(frames_list) > 0:
                 first_frame_of_video = frames_list[0]
                 
+                # Déterminer le type et la durée de transition pour cette slide
+                current_transition_type = transition_type
+                current_transition_duration = transition_duration
+                
+                # Si une configuration par slide existe, l'utiliser
+                if per_slide_transitions and i - 1 < len(per_slide_transitions):
+                    slide_trans_config = per_slide_transitions[i - 1]
+                    if 'type' in slide_trans_config:
+                        current_transition_type = slide_trans_config['type']
+                    if 'duration' in slide_trans_config:
+                        current_transition_duration = slide_trans_config['duration']
+                
+                # Calculer le nombre de frames pour cette transition
+                current_num_transition_frames = int(float(fps) * current_transition_duration)
+                
+                # Ajouter des frames de pause avant la transition si spécifié
+                pause_duration = 0
+                if per_slide_transitions and i - 1 < len(per_slide_transitions):
+                    pause_duration = per_slide_transitions[i - 1].get('pause_before', 0)
+                
+                if pause_duration > 0:
+                    num_pause_frames = int(float(fps) * pause_duration)
+                    print(f"    Ajout d'une pause de {pause_duration}s ({num_pause_frames} frames)")
+                    last_frame_np = last_frame.to_ndarray(format='bgr24')
+                    if last_frame_np.shape[:2] != (height, width):
+                        last_frame_np = cv2.resize(last_frame_np, (width, height))
+                    
+                    for _ in range(num_pause_frames):
+                        av_frame = av.VideoFrame.from_ndarray(last_frame_np, format='bgr24')
+                        av_frame.pts = None
+                        packets = out_stream.encode(av_frame)
+                        for packet in packets:
+                            output_container.mux(packet)
+                
+                # Afficher la transition utilisée
+                if current_transition_type != 'none':
+                    print(f"    Transition: {current_transition_type} ({current_transition_duration}s)")
+                
                 # Convertir les frames PyAV en numpy arrays
                 last_frame_np = last_frame.to_ndarray(format='bgr24')
                 first_frame_np = first_frame_of_video.to_ndarray(format='bgr24')
@@ -656,8 +695,8 @@ def concatenate_videos(video_paths, output_path, transition_type='none', transit
                 
                 # Générer les frames de transition
                 transition_frames = generate_transition_frames(
-                    last_frame_np, first_frame_np, transition_type, 
-                    num_transition_frames, float(fps)
+                    last_frame_np, first_frame_np, current_transition_type, 
+                    current_num_transition_frames, float(fps)
                 )
                 
                 # Encoder les frames de transition
@@ -797,7 +836,7 @@ def initiate_sketch_sync(image_path, split_len, frame_rate, object_skip_rate, bg
     callback(final_result)
 
 
-def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate, bg_object_skip_rate, main_img_duration, which_platform="linux", export_json=False, transition='none', transition_duration=0.5):
+def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate, bg_object_skip_rate, main_img_duration, which_platform="linux", export_json=False, transition='none', transition_duration=0.5, per_slide_config=None):
     """Traite plusieurs images et génère une vidéo combinée.
     
     Args:
@@ -811,6 +850,7 @@ def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate
         export_json: Exporter les données d'animation au format JSON
         transition: Type de transition ('none', 'fade', 'wipe', 'push_left', 'push_right', 'iris')
         transition_duration: Durée de la transition en secondes
+        per_slide_config: Configuration par slide (dict avec clés 'slides' et 'transitions')
     """
     global platform
     platform = which_platform
@@ -830,6 +870,9 @@ def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate
     current_time = str(now.strftime("%H%M%S"))
     current_date = str(now.strftime("%Y%m%d"))
     series_id = f"{current_date}_{current_time}"
+    
+    # Préparer les configurations de transition par slide
+    transition_configs = []
     
     # Traiter chaque image
     for idx, image_path in enumerate(image_paths, 1):
@@ -867,15 +910,42 @@ def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate
             img_wd = find_nearest_res(new_aspect_wd)
             print(f"  Résolution cible: {img_wd}x{img_ht}")
             
-            # Pour les slides intermédiaires (pas la dernière), ne pas ajouter de pause à la fin
-            # Cela évite un délai indésirable avant la transition vers la slide suivante
+            # Obtenir la configuration pour cette slide
+            slide_config = {}
+            if per_slide_config and 'slides' in per_slide_config:
+                # Chercher la config pour cette slide (index 0-based dans le config)
+                for slide_cfg in per_slide_config['slides']:
+                    if slide_cfg.get('index') == idx - 1:
+                        slide_config = slide_cfg
+                        break
+            
+            # Utiliser les paramètres de la slide ou les valeurs par défaut
+            slide_skip_rate = slide_config.get('skip_rate', object_skip_rate)
+            slide_duration = slide_config.get('duration', main_img_duration)
+            
+            # Pour les slides intermédiaires (pas la dernière), vérifier si une durée est spécifiée
             is_last_image = (idx == len(image_paths))
-            slide_duration = main_img_duration if is_last_image else 0
+            if not is_last_image and 'duration' not in slide_config:
+                # Si pas de durée spécifiée pour slide intermédiaire, utiliser 0
+                slide_duration = 0
+            
+            print(f"  Vitesse de dessin (skip-rate): {slide_skip_rate}")
+            print(f"  Durée de la slide: {slide_duration}s")
+            
+            # Stocker la config de transition pour plus tard
+            transition_config = {}
+            if per_slide_config and 'transitions' in per_slide_config:
+                # Chercher la config de transition après cette slide
+                for trans_cfg in per_slide_config['transitions']:
+                    if trans_cfg.get('after_slide') == idx - 1:
+                        transition_config = trans_cfg
+                        break
+            transition_configs.append(transition_config)
             
             # Créer les variables
             variables = AllVariables(
                 frame_rate=frame_rate, resize_wd=img_wd, resize_ht=img_ht, split_len=split_len,
-                object_skip_rate=object_skip_rate, bg_object_skip_rate=bg_object_skip_rate,
+                object_skip_rate=slide_skip_rate, bg_object_skip_rate=bg_object_skip_rate,
                 end_gray_img_duration_in_sec=slide_duration, export_json=export_json
             )
             
@@ -917,7 +987,13 @@ def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate
         combined_video_name = f"vid_{series_id}_combined.mp4"
         combined_video_path = os.path.join(save_path, combined_video_name)
         
-        concat_success = concatenate_videos(generated_videos, combined_video_path, transition_type=transition, transition_duration=transition_duration)
+        concat_success = concatenate_videos(
+            generated_videos, 
+            combined_video_path, 
+            transition_type=transition, 
+            transition_duration=transition_duration,
+            per_slide_transitions=transition_configs
+        )
         
         if concat_success:
             # Supprimer les vidéos individuelles après concaténation réussie
@@ -1063,6 +1139,13 @@ def main():
     )
     
     parser.add_argument(
+        '--config',
+        type=str,
+        default=None,
+        help="Chemin vers un fichier JSON pour une configuration personnalisée par slide (durée, vitesse, transitions, etc.)."
+    )
+    
+    parser.add_argument(
         '--export-json',
         action='store_true',
         help="Exporte les données d'animation au format JSON (séquence de dessin, positions de la main, etc.)."
@@ -1119,6 +1202,21 @@ def main():
     if not valid_images:
         print("❌ Erreur: Aucune image valide fournie.")
         return
+    
+    # Charger la configuration personnalisée si fournie
+    per_slide_config = None
+    if args.config:
+        if not os.path.exists(args.config):
+            print(f"❌ Erreur: Fichier de configuration introuvable: {args.config}")
+            return
+        
+        try:
+            with open(args.config, 'r', encoding='utf-8') as f:
+                per_slide_config = json.load(f)
+            print(f"✅ Configuration personnalisée chargée depuis: {args.config}")
+        except Exception as e:
+            print(f"❌ Erreur lors de la lecture du fichier de configuration: {e}")
+            return
 
     print("\n" + "="*50)
     print("🎬 Lancement de l'animation Whiteboard")
@@ -1129,6 +1227,8 @@ def main():
         for i, img in enumerate(valid_images, 1):
             print(f"  {i}. {os.path.basename(img)}")
     print(f"Paramètres: Split={args.split_len}, FPS={args.frame_rate}, Skip={args.skip_rate}")
+    if per_slide_config:
+        print("🔧 Configuration personnalisée par slide activée")
     print("="*50)
 
     # Traitement unique ou multiple
@@ -1165,7 +1265,8 @@ def main():
             args.duration,
             export_json=args.export_json,
             transition=args.transition,
-            transition_duration=args.transition_duration
+            transition_duration=args.transition_duration,
+            per_slide_config=per_slide_config
         )
         
         print("\n" + "="*60)

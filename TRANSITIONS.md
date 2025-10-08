@@ -62,6 +62,55 @@ python whiteboard_animator.py slide1.png slide2.png slide3.png \
   --export-json
 ```
 
+### Configuration personnalisée par slide
+
+Pour un contrôle maximal, utilisez un fichier de configuration JSON :
+
+```bash
+python whiteboard_animator.py slide1.png slide2.png slide3.png --config config.json
+```
+
+Exemple de fichier `config.json` :
+
+```json
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 2,
+      "skip_rate": 8
+    },
+    {
+      "index": 1,
+      "duration": 4,
+      "skip_rate": 15
+    }
+  ],
+  "transitions": [
+    {
+      "after_slide": 0,
+      "type": "fade",
+      "duration": 1.0,
+      "pause_before": 2.0
+    },
+    {
+      "after_slide": 1,
+      "type": "iris",
+      "duration": 1.5,
+      "pause_before": 1.0
+    }
+  ]
+}
+```
+
+Ce fichier permet de :
+- Définir une durée et vitesse spécifique pour chaque slide
+- Choisir un type de transition différent entre chaque slide
+- Ajouter une pause avant chaque transition
+- Personnaliser la durée de chaque transition
+
+Voir [CONFIG_FORMAT.md](CONFIG_FORMAT.md) pour plus de détails sur le format de configuration.
+
 ## Détails techniques
 
 ### Implémentation des transitions
