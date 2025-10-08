@@ -203,7 +203,6 @@ def draw_masked_object(
     
     cut_black_indices = np.array(cut_black_indices)
 
-
     counter = 0
     # Continue tant qu'il y a des tuiles à dessiner
     while len(cut_black_indices) > 0:
@@ -222,14 +221,11 @@ def draw_masked_object(
         range_h_start = selected_ind_val[1] * variables.split_len
         range_h_end = range_h_start + tile_wd # MODIFIÉ pour utiliser la taille réelle de la tuile
 
-        # Créer une image BGR à partir de la tuile en niveaux de gris
-        temp_drawing = np.zeros((tile_ht, tile_wd, 3), dtype=np.uint8)
-        temp_drawing[:, :, 0] = tile_to_draw
-        temp_drawing[:, :, 1] = tile_to_draw
-        temp_drawing[:, :, 2] = tile_to_draw
+        # Obtenir la tuile correspondante de l'image originale en couleur
+        original_tile = variables.img[range_v_start:range_v_end, range_h_start:range_h_end]
         
-        # Appliquer la tuile au cadre de dessin - CECI EST LA LIGNE CORRIGÉE
-        variables.drawn_frame[range_v_start:range_v_end, range_h_start:range_h_end] = temp_drawing
+        # Appliquer la tuile au cadre de dessin
+        variables.drawn_frame[range_v_start:range_v_end, range_h_start:range_h_end] = original_tile
 
         # Coordonnées pour le centre de la main
         hand_coord_x = range_h_start + int(tile_wd / 2)
@@ -506,13 +502,26 @@ def draw_layered_whiteboard_animations(
                 skip_rate=layer_skip_rate,
             )
             
-            # Mettre à jour le canvas avec la couche dessinée (appliquer l'opacité)
+            # Create mask for this layer's content (from the original layer image position)
+            layer_mask = np.any(layer_full < 250, axis=2).astype(np.float32)
+            layer_mask_3d = np.stack([layer_mask] * 3, axis=2)
+            
             if opacity < 1.0:
-                variables.drawn_frame = cv2.addWeighted(
-                    variables.drawn_frame, 1 - opacity, layer_vars.drawn_frame, opacity, 0
-                )
+                # Blend only the layer's pixels
+                # Where layer has content: blend old background with new layer content
+                # Where layer has no content: keep the old frame unchanged
+                layer_content = layer_vars.drawn_frame * layer_mask_3d
+                old_background = variables.drawn_frame * layer_mask_3d
+                blended_layer = cv2.addWeighted(old_background, 1 - opacity, layer_content, opacity, 0)
+                
+                # Combine: blended layer where mask=1, old frame where mask=0
+                variables.drawn_frame = (layer_mask_3d * blended_layer + 
+                                        (1 - layer_mask_3d) * variables.drawn_frame).astype(np.uint8)
             else:
-                variables.drawn_frame = layer_vars.drawn_frame.copy()
+                # No opacity blending, just overlay the layer where it has content
+                variables.drawn_frame = np.where(layer_mask_3d > 0, 
+                                                layer_vars.drawn_frame, 
+                                                variables.drawn_frame).astype(np.uint8)
             
             # Enregistrer les infos de la couche pour l'export JSON
             if variables.export_json:
