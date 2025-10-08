@@ -6,6 +6,11 @@ This document summarizes the implementation of new animation features for the Wh
 ## Implementation Date
 October 8, 2024
 
+## Updates
+**Bug Fix - October 8, 2024:**
+- Fixed eraser mode to properly erase (show image first, then remove) instead of drawing
+- Enhanced morph to handle position interpolation for smooth movement between different locations
+
 ## Features Implemented
 
 ### 1. Eraser Animation Layer Mode ✅
@@ -17,6 +22,7 @@ October 8, 2024
 - Added `draw_eraser_on_img()` function to overlay eraser on frames
 - Modified `draw_masked_object()` to support mode parameter ('draw', 'eraser', 'static')
 - Integrated eraser mode into layer drawing logic
+- **FIXED:** Eraser now starts with full image visible and progressively removes content (instead of drawing it)
 
 **Configuration:**
 ```json
@@ -25,6 +31,11 @@ October 8, 2024
 }
 ```
 
+**How it works:**
+1. Full image is shown initially
+2. Eraser progressively removes (erases) tiles with animation
+3. Eraser image overlay shows where content is being removed
+
 ### 2. Morph Transition Between Layers ✅
 **Requirement:** Morph from between two layers.
 
@@ -32,6 +43,7 @@ October 8, 2024
 - Added `generate_morph_frames()` function for smooth interpolation between frames
 - Integrated morphing into layer drawing loop
 - Morph happens automatically before drawing the target layer when enabled
+- **ENHANCED:** Now handles position interpolation for images at different locations
 
 **Configuration:**
 ```json
@@ -42,6 +54,13 @@ October 8, 2024
   }
 }
 ```
+
+**How it works:**
+1. Detects content regions in both source and target frames
+2. Calculates bounding boxes and center points
+3. For nearby content (< 10px apart): Simple opacity blending
+4. For distant content: Progressive movement using `cv2.warpAffine` + opacity blending
+5. Content smoothly moves and transforms from source position to target position
 
 ### 3. Static Layer Type ✅
 **Requirement:** A layer type that is just a simple image without a drawing hand but appears with entrance and exit animations.

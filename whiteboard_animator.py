@@ -499,6 +499,9 @@ def apply_exit_animation(frame, animation_config, frame_index, total_frames, fra
 def generate_morph_frames(frame1, frame2, num_frames):
     """Generate morph transition frames between two frames.
     
+    This function creates a smooth morphing transition that handles both
+    opacity blending and position changes when content is at different locations.
+    
     Args:
         frame1: Starting frame
         frame2: Ending frame
@@ -511,10 +514,82 @@ def generate_morph_frames(frame1, frame2, num_frames):
         return []
     
     morph_frames = []
-    for i in range(num_frames):
-        alpha = (i + 1) / (num_frames + 1)
-        morphed = cv2.addWeighted(frame1, 1 - alpha, frame2, alpha, 0)
-        morph_frames.append(morphed)
+    
+    # Detect content regions in both frames (non-white pixels)
+    # A pixel is considered content if it's significantly different from white (255,255,255)
+    threshold = 250
+    frame1_mask = np.any(frame1 < threshold, axis=2).astype(np.uint8) * 255
+    frame2_mask = np.any(frame2 < threshold, axis=2).astype(np.uint8) * 255
+    
+    # Find bounding boxes of content in both frames
+    def get_content_bbox(mask):
+        """Get bounding box of non-zero pixels in mask"""
+        coords = np.argwhere(mask > 0)
+        if len(coords) == 0:
+            return None
+        y_min, x_min = coords.min(axis=0)
+        y_max, x_max = coords.max(axis=0)
+        return (x_min, y_min, x_max, y_max)
+    
+    bbox1 = get_content_bbox(frame1_mask)
+    bbox2 = get_content_bbox(frame2_mask)
+    
+    # If no content in either frame, just do simple blending
+    if bbox1 is None or bbox2 is None:
+        for i in range(num_frames):
+            alpha = (i + 1) / (num_frames + 1)
+            morphed = cv2.addWeighted(frame1, 1 - alpha, frame2, alpha, 0)
+            morph_frames.append(morphed)
+        return morph_frames
+    
+    # Calculate centers of content regions
+    center1_x = (bbox1[0] + bbox1[2]) / 2
+    center1_y = (bbox1[1] + bbox1[3]) / 2
+    center2_x = (bbox2[0] + bbox2[2]) / 2
+    center2_y = (bbox2[1] + bbox2[3]) / 2
+    
+    # Check if there's significant position difference
+    position_diff = np.sqrt((center2_x - center1_x)**2 + (center2_y - center1_y)**2)
+    
+    # If positions are very similar (less than 10 pixels apart), use simple blending
+    if position_diff < 10:
+        for i in range(num_frames):
+            alpha = (i + 1) / (num_frames + 1)
+            morphed = cv2.addWeighted(frame1, 1 - alpha, frame2, alpha, 0)
+            morph_frames.append(morphed)
+    else:
+        # Position-aware morphing: blend while interpolating positions
+        for i in range(num_frames):
+            alpha = (i + 1) / (num_frames + 1)
+            
+            # Interpolate center position
+            interp_center_x = center1_x * (1 - alpha) + center2_x * alpha
+            interp_center_y = center1_y * (1 - alpha) + center2_y * alpha
+            
+            # Calculate translation needed for each frame
+            offset1_x = interp_center_x - center1_x
+            offset1_y = interp_center_y - center1_y
+            offset2_x = interp_center_x - center2_x
+            offset2_y = interp_center_y - center2_y
+            
+            # Create translation matrices
+            h, w = frame1.shape[:2]
+            
+            # Translate frame1 content toward target position
+            M1 = np.float32([[1, 0, offset1_x], [0, 1, offset1_y]])
+            frame1_translated = cv2.warpAffine(frame1, M1, (w, h), 
+                                              borderMode=cv2.BORDER_CONSTANT,
+                                              borderValue=(255, 255, 255))
+            
+            # Translate frame2 content toward intermediate position
+            M2 = np.float32([[1, 0, offset2_x], [0, 1, offset2_y]])
+            frame2_translated = cv2.warpAffine(frame2, M2, (w, h),
+                                              borderMode=cv2.BORDER_CONSTANT,
+                                              borderValue=(255, 255, 255))
+            
+            # Blend the translated frames
+            morphed = cv2.addWeighted(frame1_translated, 1 - alpha, frame2_translated, alpha, 0)
+            morph_frames.append(morphed)
     
     return morph_frames
 
@@ -535,6 +610,14 @@ def draw_masked_object(
         eraser_ht, eraser_wd: Eraser dimensions
     """
     # print("Skip Rate: ", skip_rate)
+    
+    # For eraser mode, start with the full image visible
+    if mode == 'eraser':
+        if object_mask is not None:
+            object_ind = np.where(object_mask == 255)
+            variables.drawn_frame[object_ind] = variables.img[object_ind]
+        else:
+            variables.drawn_frame[:, :, :] = variables.img
     
     # Si un masque d'objet est fourni, le seuil s'appliquera uniquement à cette zone
     img_thresh_copy = variables.img_thresh.copy()
@@ -603,7 +686,12 @@ def draw_masked_object(
         original_tile = variables.img[range_v_start:range_v_end, range_h_start:range_h_end]
         
         # Appliquer la tuile au cadre de dessin
-        variables.drawn_frame[range_v_start:range_v_end, range_h_start:range_h_end] = original_tile
+        if mode == 'eraser':
+            # En mode eraser, on efface (met en blanc/noir) la tuile
+            variables.drawn_frame[range_v_start:range_v_end, range_h_start:range_h_end] = 255
+        else:
+            # En mode normal, on dessine la tuile
+            variables.drawn_frame[range_v_start:range_v_end, range_h_start:range_h_end] = original_tile
 
         # Coordonnées pour le centre de la main/eraser
         hand_coord_x = range_h_start + int(tile_wd / 2)
@@ -690,11 +778,13 @@ def draw_masked_object(
             print(f"Tuiles restantes: {len(cut_black_indices)}")
 
     # Après avoir dessiné toutes les lignes, superposer l'objet original en couleur
-    if object_mask is not None:
-        object_ind = np.where(object_mask == 255)
-        variables.drawn_frame[object_ind] = variables.img[object_ind]
-    else:
-        variables.drawn_frame[:, :, :] = variables.img
+    # (sauf en mode eraser où on veut garder l'état effacé)
+    if mode != 'eraser':
+        if object_mask is not None:
+            object_ind = np.where(object_mask == 255)
+            variables.drawn_frame[object_ind] = variables.img[object_ind]
+        else:
+            variables.drawn_frame[:, :, :] = variables.img
 
 
 def draw_whiteboard_animations(
