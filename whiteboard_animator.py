@@ -867,11 +867,16 @@ def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate
             img_wd = find_nearest_res(new_aspect_wd)
             print(f"  Résolution cible: {img_wd}x{img_ht}")
             
+            # Pour les slides intermédiaires (pas la dernière), ne pas ajouter de pause à la fin
+            # Cela évite un délai indésirable avant la transition vers la slide suivante
+            is_last_image = (idx == len(image_paths))
+            slide_duration = main_img_duration if is_last_image else 0
+            
             # Créer les variables
             variables = AllVariables(
                 frame_rate=frame_rate, resize_wd=img_wd, resize_ht=img_ht, split_len=split_len,
                 object_skip_rate=object_skip_rate, bg_object_skip_rate=bg_object_skip_rate,
-                end_gray_img_duration_in_sec=main_img_duration, export_json=export_json
+                end_gray_img_duration_in_sec=slide_duration, export_json=export_json
             )
             
             # Générer l'animation
