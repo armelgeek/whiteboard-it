@@ -2,6 +2,53 @@
 
 Ce document décrit le format du fichier de configuration JSON pour personnaliser les paramètres de chaque slide individuellement.
 
+## ⏱️ Comportement de la durée (IMPORTANT)
+
+**Changement important:** Le paramètre `duration` représente maintenant la **durée TOTALE** de la slide, et non plus uniquement le temps d'affichage après l'animation.
+
+### Comment ça fonctionne
+
+1. **Animation calculée automatiquement:** Le système calcule le temps nécessaire pour animer le dessin en fonction de:
+   - La taille et le contenu de l'image
+   - Le `skip_rate` (vitesse de dessin)
+   - Le nombre de couches (layers)
+
+2. **Durée totale respectée:** Si vous spécifiez `duration: 5`:
+   - Si l'animation prend 2 secondes → l'image finale sera affichée pendant 3 secondes
+   - Si l'animation prend 5 secondes → aucun temps d'attente supplémentaire
+   - Si l'animation prend 7 secondes → un avertissement sera affiché et la durée totale sera de 7 secondes
+
+3. **Affichage des informations:** Le système affiche:
+   ```
+   ⏱️ Animation: 1.33s (40 frames)
+   ⏱️ Final hold: 2.67s (80 frames)
+   ⏱️ Total duration: 4.00s
+   ```
+
+### Exemple pratique
+
+```json
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 10,
+      "layers": [
+        {
+          "image_path": "demo/1.jpg",
+          "skip_rate": 5
+        }
+      ]
+    }
+  ]
+}
+```
+
+Avec cette configuration:
+- La slide aura une durée totale de **10 secondes**
+- Si l'animation prend 3 secondes, l'image finale sera affichée pendant 7 secondes
+- Le total sera toujours 10 secondes (sauf si l'animation dépasse 10s)
+
 ## Format du fichier JSON
 
 Le fichier de configuration contient deux sections principales :
@@ -55,7 +102,7 @@ Permet de définir des paramètres spécifiques pour chaque slide.
 | Propriété | Type | Description | Par défaut |
 |-----------|------|-------------|------------|
 | `index` | int | Index de la slide (commence à 0) | Requis |
-| `duration` | int/float | Durée d'affichage de la slide finale en secondes | Valeur globale `--duration` |
+| `duration` | int/float | **Durée TOTALE de la slide en secondes** (inclut l'animation + temps d'affichage final). Si l'animation dépasse cette durée, seule l'animation sera utilisée. | Valeur globale `--duration` |
 | `skip_rate` | int | Vitesse de dessin (plus grand = plus rapide) | Valeur globale `--skip-rate` |
 | `layers` | array | Liste des couches d'images superposées (optionnel) | null |
 
@@ -74,7 +121,10 @@ Permet de définir des paramètres spécifiques pour chaque slide.
 ```
 
 Dans cet exemple :
-- La première slide (index 0) sera affichée pendant 2 secondes après le dessin
+- La première slide (index 0) aura une durée totale de 2 secondes
+- Le système calcule automatiquement le temps d'animation basé sur l'image et le skip_rate
+- Si l'animation prend 0.5 secondes, l'image finale sera affichée pendant 1.5 secondes
+- Si l'animation prend plus de 2 secondes, seule l'animation sera montrée (avec un avertissement)
 - Le dessin sera effectué avec une vitesse de 10 (plus rapide que la valeur par défaut de 8)
 
 ### Support des couches multiples (layers)
