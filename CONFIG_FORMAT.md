@@ -57,6 +57,7 @@ Permet de définir des paramètres spécifiques pour chaque slide.
 | `index` | int | Index de la slide (commence à 0) | Requis |
 | `duration` | int/float | Durée d'affichage de la slide finale en secondes | Valeur globale `--duration` |
 | `skip_rate` | int | Vitesse de dessin (plus grand = plus rapide) | Valeur globale `--skip-rate` |
+| `layers` | array | Liste des couches d'images superposées (optionnel) | null |
 
 ### Exemple
 
@@ -75,6 +76,65 @@ Permet de définir des paramètres spécifiques pour chaque slide.
 Dans cet exemple :
 - La première slide (index 0) sera affichée pendant 2 secondes après le dessin
 - Le dessin sera effectué avec une vitesse de 10 (plus rapide que la valeur par défaut de 8)
+
+### Support des couches multiples (layers)
+
+Une slide peut contenir plusieurs images superposées (layers), chacune positionnée à un endroit spécifique du canvas.
+
+#### Propriétés d'une couche
+
+| Propriété | Type | Description | Par défaut |
+|-----------|------|-------------|------------|
+| `image_path` | string | Chemin vers l'image de la couche | Requis |
+| `position` | object | Position de la couche sur le canvas avec `x` et `y` | `{"x": 0, "y": 0}` |
+| `z_index` | int | Ordre de superposition (plus grand = au-dessus) | 0 |
+| `skip_rate` | int | Vitesse de dessin spécifique à cette couche | Hérite de la slide |
+| `scale` | float | Échelle de l'image (1.0 = taille originale) | 1.0 |
+| `opacity` | float | Opacité de la couche (0.0 à 1.0) | 1.0 |
+
+#### Exemple avec couches
+
+```json
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 3,
+      "layers": [
+        {
+          "image_path": "background.png",
+          "position": {"x": 0, "y": 0},
+          "z_index": 1,
+          "skip_rate": 8
+        },
+        {
+          "image_path": "element1.png",
+          "position": {"x": 100, "y": 150},
+          "z_index": 2,
+          "skip_rate": 15,
+          "scale": 0.5
+        },
+        {
+          "image_path": "element2.png",
+          "position": {"x": 500, "y": 200},
+          "z_index": 3,
+          "skip_rate": 20,
+          "opacity": 0.8
+        }
+      ]
+    }
+  ]
+}
+```
+
+Dans cet exemple :
+- La slide 0 contient 3 images superposées
+- L'image de fond est dessinée en premier (z_index: 1)
+- element1.png est dessiné ensuite à la position (100, 150) avec une échelle de 50%
+- element2.png est dessiné en dernier à la position (500, 200) avec 80% d'opacité
+- Chaque couche a sa propre vitesse de dessin
+
+**Note:** Lorsque `layers` est spécifié, l'image de la ligne de commande pour cette slide n'est pas utilisée. Toutes les images doivent être définies dans les couches.
 
 ## Section `transitions`
 
@@ -264,6 +324,64 @@ La première slide s'affiche 1 seconde, la deuxième 5 secondes, et la troisièm
 Cet exemple combine tous les paramètres :
 - Chaque slide a sa propre durée d'affichage et vitesse de dessin
 - Chaque transition a son propre type, durée et temps de pause
+
+### Cas 5 : Utilisation de couches multiples (layers)
+
+```json
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 4,
+      "layers": [
+        {
+          "image_path": "examples/background.png",
+          "position": {"x": 0, "y": 0},
+          "z_index": 1,
+          "skip_rate": 5
+        },
+        {
+          "image_path": "examples/logo.png",
+          "position": {"x": 50, "y": 50},
+          "z_index": 2,
+          "skip_rate": 15,
+          "scale": 0.3
+        },
+        {
+          "image_path": "examples/text.png",
+          "position": {"x": 200, "y": 400},
+          "z_index": 3,
+          "skip_rate": 20,
+          "opacity": 0.9
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "duration": 3,
+      "skip_rate": 10
+    }
+  ],
+  "transitions": [
+    {
+      "after_slide": 0,
+      "type": "fade",
+      "duration": 0.5
+    }
+  ]
+}
+```
+
+Dans cet exemple :
+- La première slide est composée de 3 couches superposées :
+  - Un fond dessiné lentement (skip_rate: 5)
+  - Un logo à 30% de sa taille positionné en haut à gauche
+  - Du texte semi-transparent positionné plus bas
+- Les couches sont dessinées selon leur ordre z_index (1, 2, 3)
+- La deuxième slide utilise une seule image (celle fournie en ligne de commande)
+- Une transition fade relie les deux slides
+
+**Important:** Quand vous utilisez des couches (layers), vous devez quand même fournir au moins une image en ligne de commande pour définir le nombre de slides, mais cette image sera ignorée pour les slides avec configuration de couches.
 
 ## Notes importantes
 

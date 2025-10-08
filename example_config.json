@@ -8,7 +8,23 @@
     {
       "index": 1,
       "duration": 3,
-      "skip_rate": 15
+      "skip_rate": 15,
+      "layers": [
+        {
+          "image_path": "examples/layer1.png",
+          "position": {"x": 0, "y": 0},
+          "z_index": 1,
+          "skip_rate": 8
+        },
+        {
+          "image_path": "examples/layer2.png",
+          "position": {"x": 100, "y": 100},
+          "z_index": 2,
+          "skip_rate": 15,
+          "scale": 0.5,
+          "opacity": 0.9
+        }
+      ]
     },
     {
       "index": 2,
