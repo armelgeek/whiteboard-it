@@ -203,6 +203,9 @@ def draw_masked_object(
     
     cut_black_indices = np.array(cut_black_indices)
 
+    # Debug: print initial tile count
+    if len(cut_black_indices) > 0:
+        print(f"Tuiles à dessiner: {len(cut_black_indices)}")
 
     counter = 0
     # Continue tant qu'il y a des tuiles à dessiner
@@ -222,14 +225,11 @@ def draw_masked_object(
         range_h_start = selected_ind_val[1] * variables.split_len
         range_h_end = range_h_start + tile_wd # MODIFIÉ pour utiliser la taille réelle de la tuile
 
-        # Créer une image BGR à partir de la tuile en niveaux de gris
-        temp_drawing = np.zeros((tile_ht, tile_wd, 3), dtype=np.uint8)
-        temp_drawing[:, :, 0] = tile_to_draw
-        temp_drawing[:, :, 1] = tile_to_draw
-        temp_drawing[:, :, 2] = tile_to_draw
+        # Obtenir la tuile correspondante de l'image originale en couleur
+        original_tile = variables.img[range_v_start:range_v_end, range_h_start:range_h_end]
         
-        # Appliquer la tuile au cadre de dessin - CECI EST LA LIGNE CORRIGÉE
-        variables.drawn_frame[range_v_start:range_v_end, range_h_start:range_h_end] = temp_drawing
+        # Appliquer la tuile au cadre de dessin
+        variables.drawn_frame[range_v_start:range_v_end, range_h_start:range_h_end] = original_tile
 
         # Coordonnées pour le centre de la main
         hand_coord_x = range_h_start + int(tile_wd / 2)
