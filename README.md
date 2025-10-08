@@ -5,7 +5,9 @@ Application de création d'animations de type "dessin sur tableau blanc" (whiteb
 ## Fonctionnalités
 
 - ✅ Génération de vidéos d'animation de dessin à partir d'images
-- ✅ **Couches multiples (layers)** - Superposition d'images sur une même slide avec hiérarchie (NOUVEAU)
+- ✅ **Contrôles de caméra** - Zoom et focus sur des zones spécifiques (NOUVEAU)
+- ✅ **Animations avancées** - Effets de zoom-in/zoom-out post-dessin (NOUVEAU)
+- ✅ **Couches multiples (layers)** - Superposition d'images sur une même slide avec hiérarchie
 - ✅ **Qualité vidéo améliorée** - CRF ajustable pour une qualité optimale
 - ✅ **Export multi-formats** - Support 1:1, 16:9, 9:16 en HD
 - ✅ **Filigrane (watermark)** - Ajout de logo/texte avec position et opacité personnalisables
@@ -192,6 +194,69 @@ Le fichier de configuration permet de définir :
 ```
 
 Voir [CONFIG_FORMAT.md](CONFIG_FORMAT.md) pour la documentation complète du format de configuration.
+
+## Contrôles de caméra et animations avancées (NOUVEAU)
+
+Whiteboard-It supporte maintenant des contrôles de caméra cinématiques et des effets d'animation avancés pour créer des vidéos plus dynamiques.
+
+### Contrôles de caméra
+
+Zoomez et focalisez sur des zones spécifiques de vos couches :
+
+```json
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 8,
+      "layers": [
+        {
+          "image_path": "diagram.png",
+          "z_index": 1,
+          "camera": {
+            "zoom": 1.5,
+            "position": {"x": 0.5, "y": 0.5}
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Animations post-dessin
+
+Ajoutez des effets de zoom après le dessin de la couche :
+
+```json
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 10,
+      "layers": [
+        {
+          "image_path": "product.png",
+          "z_index": 1,
+          "animation": {
+            "type": "zoom_in",
+            "duration": 2.0,
+            "start_zoom": 1.0,
+            "end_zoom": 2.0,
+            "focus_position": {"x": 0.7, "y": 0.4}
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Effets disponibles:**
+- `zoom_in` : Zoom progressif vers l'intérieur
+- `zoom_out` : Zoom progressif vers l'extérieur
+
+Voir [CAMERA_ANIMATION_GUIDE.md](CAMERA_ANIMATION_GUIDE.md) pour la documentation complète des contrôles de caméra et animations.
 
 ## Format d'export JSON
 

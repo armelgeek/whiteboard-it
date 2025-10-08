@@ -161,6 +161,51 @@ Morphing depuis la couche précédente pour une transition fluide.
   "duration": 0.5
 }
 ```
+#### type (optionnel, défaut: "image")
+Type de couche. Actuellement supporte `image` et `text` (pour référence future).
+
+**Exemple :**
+```json
+"type": "image"
+```
+
+#### camera (optionnel, défaut: null)
+Configuration de la caméra pour zoomer et se concentrer sur des zones spécifiques.
+
+**Propriétés :**
+- `zoom` (float) : Niveau de zoom (1.0 = normal, 2.0 = zoom x2)
+- `position` (object) : Point focal avec `x` et `y` (0.0-1.0, où 0.5 = centre)
+
+**Exemple :**
+```json
+"camera": {
+  "zoom": 1.5,
+  "position": {"x": 0.5, "y": 0.3}
+}
+```
+Ce zoom 1.5x se concentre sur la partie supérieure-centrale de la couche.
+
+#### animation (optionnel, défaut: null)
+Effets d'animation appliqués après le dessin de la couche.
+
+**Propriétés :**
+- `type` (string) : Type d'effet - `none`, `zoom_in`, `zoom_out`
+- `duration` (float) : Durée de l'effet en secondes
+- `start_zoom` (float) : Niveau de zoom de départ
+- `end_zoom` (float) : Niveau de zoom final
+- `focus_position` (object) : Point focal pendant le zoom
+
+**Exemple zoom-in :**
+```json
+"animation": {
+  "type": "zoom_in",
+  "duration": 1.5,
+  "start_zoom": 1.0,
+  "end_zoom": 2.0,
+  "focus_position": {"x": 0.6, "y": 0.4}
+}
+```
+Zoome progressivement de 1.0x à 2.0x en se concentrant sur (0.6, 0.4).
 
 ## Exemples pratiques
 
@@ -249,6 +294,7 @@ Morphing depuis la couche précédente pour une transition fluide.
 3. Une étiquette apparaît très rapidement par-dessus
 
 ### Exemple 3 : Modes avancés avec animations (NOUVEAU)
+### Exemple 3 : Contrôles de caméra et animations (NOUVEAU)
 
 ```json
 {
@@ -256,6 +302,7 @@ Morphing depuis la couche précédente pour une transition fluide.
     {
       "index": 0,
       "duration": 12,
+      "duration": 10,
       "layers": [
         {
           "image_path": "scene.png",
@@ -299,6 +346,58 @@ Morphing depuis la couche précédente pour une transition fluide.
           "morph": {
             "enabled": true,
             "duration": 0.5
+          "camera": {
+            "zoom": 1.5,
+            "position": {"x": 0.5, "y": 0.4}
+          },
+          "animation": {
+            "type": "zoom_in",
+            "duration": 2.0,
+            "start_zoom": 1.5,
+            "end_zoom": 2.5,
+            "focus_position": {"x": 0.6, "y": 0.4}
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Résultat :**
+1. La scène est dessinée avec un zoom de caméra de 1.5x
+2. La caméra se concentre sur la partie supérieure-centrale (0.5, 0.4)
+3. Après le dessin, un zoom-in progressif de 1.5x à 2.5x est appliqué
+4. Le focus se déplace légèrement vers (0.6, 0.4) pendant le zoom
+
+**Cas d'usage :**
+- Présentation de produits avec zoom sur les détails
+- Tutoriels avec focus sur des zones spécifiques
+- Effets cinématiques et dramatiques
+
+### Exemple 4 : Révélation cinématique avec zoom-out
+
+```json
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 10,
+      "layers": [
+        {
+          "image_path": "full_scene.png",
+          "z_index": 1,
+          "skip_rate": 10,
+          "camera": {
+            "zoom": 2.5,
+            "position": {"x": 0.5, "y": 0.5}
+          },
+          "animation": {
+            "type": "zoom_out",
+            "duration": 2.5,
+            "start_zoom": 2.5,
+            "end_zoom": 1.0,
+            "focus_position": {"x": 0.5, "y": 0.5}
           }
         }
       ]
@@ -320,6 +419,12 @@ Morphing depuis la couche précédente pour une transition fluide.
 - **Morph** : Crée une transition fluide en morphing entre deux couches
 
 ### Exemple 4 : Slides multiples avec et sans couches
+1. La scène commence très zoomée (2.5x)
+2. Le dessin est animé avec ce zoom important
+3. Après le dessin, un zoom-out révèle progressivement la scène complète
+4. Effet de "grande révélation" dramatique
+
+### Exemple 5 : Slides multiples avec et sans couches
 
 ```json
 {
@@ -433,6 +538,32 @@ Les positions sont en pixels par rapport à la résolution cible calculée. Util
 python whiteboard_animator.py image.png --get-split-lens
 ```
 
+### 6. Contrôles de caméra (NOUVEAU)
+**Niveaux de zoom recommandés :**
+- Vue d'ensemble : zoom 1.0-1.2
+- Focus modéré : zoom 1.3-1.8
+- Gros plan : zoom 2.0-3.0
+
+**Position de focus :**
+- Centre : `{"x": 0.5, "y": 0.5}`
+- Haut à gauche : `{"x": 0.25, "y": 0.25}`
+- Bas à droite : `{"x": 0.75, "y": 0.75}`
+
+### 7. Animations post-dessin (NOUVEAU)
+**Durées recommandées :**
+- Effet subtil : 1.0-1.5 secondes
+- Effet normal : 1.5-2.5 secondes
+- Effet dramatique : 2.5-4.0 secondes
+
+**Zoom-in :** Utilisez pour attirer l'attention sur un détail après le dessin
+**Zoom-out :** Utilisez pour révéler le contexte complet après un gros plan
+
+### 8. Combinaison caméra + animation
+Pour un effet cinématique maximal :
+1. Commencez avec un `camera.zoom` initial
+2. Ajoutez une `animation` pour un effet progressif
+3. Assurez-vous que `start_zoom` de l'animation correspond au `camera.zoom`
+
 ## Dépannage
 
 ### Les couches ne s'affichent pas
@@ -452,6 +583,21 @@ python whiteboard_animator.py image.png --get-split-lens
 - Augmentez les valeurs de skip_rate
 - Réduisez la résolution des images de couches
 - Utilisez --split-len plus grand (ex: 30 au lieu de 15)
+
+### Zoom de caméra pixelisé
+- Utilisez des images source en haute résolution
+- Réduisez le niveau de zoom (restez sous 2.5x si possible)
+- Évitez de zoomer sur des images basse résolution
+
+### Animation de zoom saccadée
+- Augmentez le frame rate (ex: --frame-rate 30 ou 60)
+- Réduisez la différence entre start_zoom et end_zoom
+- Augmentez la durée de l'animation
+
+### Focus de caméra incorrect
+- Vérifiez que les coordonnées sont entre 0.0 et 1.0
+- Rappelez-vous : (0.5, 0.5) est le centre exact
+- Testez différentes positions par incréments de 0.1
 
 ## Limitations
 
@@ -495,6 +641,15 @@ Le morphing crée une transition fluide entre deux couches :
 - Active automatiquement entre la couche N-1 et N
 - Fonctionne mieux entre images de contenu similaire
 - Durée recommandée : 0.3-0.8 secondes
+5. **Zoom de caméra** : Le zoom ne peut pas ajouter de détails au-delà de la résolution originale
+6. **Animations** : Les effets de zoom peuvent augmenter le temps de rendu et la taille du fichier
+7. **Type text** : Les animations de texte en typewriting ne sont pas encore implémentées (prévu pour une version future)
+
+## Ressources complémentaires
+
+- **Guide complet des contrôles de caméra** : [CAMERA_ANIMATION_GUIDE.md](CAMERA_ANIMATION_GUIDE.md)
+- **Format de configuration** : [CONFIG_FORMAT.md](CONFIG_FORMAT.md)
+- **Exemples pratiques** : Voir le dossier `examples/` pour des configurations prêtes à l'emploi
 
 ## Support et contributions
 

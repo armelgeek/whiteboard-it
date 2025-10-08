@@ -108,6 +108,112 @@ def get_extreme_coordinates(mask):
     return topleft, bottomright
 
 
+def apply_camera_transform(frame, camera_config, frame_width, frame_height):
+    """Apply camera zoom and position transformations to a frame.
+    
+    Args:
+        frame: Input frame (numpy array)
+        camera_config: Dictionary with camera settings (zoom, position)
+        frame_width: Target frame width
+        frame_height: Target frame height
+    
+    Returns:
+        Transformed frame
+    """
+    if camera_config is None:
+        return frame
+    
+    zoom = camera_config.get('zoom', 1.0)
+    position = camera_config.get('position', {'x': 0.5, 'y': 0.5})
+    
+    # If no zoom, return original frame
+    if zoom == 1.0:
+        return frame
+    
+    h, w = frame.shape[:2]
+    
+    # Calculate zoom region
+    zoom_w = int(w / zoom)
+    zoom_h = int(h / zoom)
+    
+    # Calculate center position (0.5, 0.5 is center, 0.0, 0.0 is top-left)
+    center_x = int(w * position['x'])
+    center_y = int(h * position['y'])
+    
+    # Calculate crop region
+    x1 = max(0, center_x - zoom_w // 2)
+    y1 = max(0, center_y - zoom_h // 2)
+    x2 = min(w, x1 + zoom_w)
+    y2 = min(h, y1 + zoom_h)
+    
+    # Adjust if we hit boundaries
+    if x2 - x1 < zoom_w:
+        x1 = max(0, x2 - zoom_w)
+    if y2 - y1 < zoom_h:
+        y1 = max(0, y2 - zoom_h)
+    
+    # Crop and resize to original dimensions
+    cropped = frame[y1:y2, x1:x2]
+    zoomed = cv2.resize(cropped, (frame_width, frame_height), interpolation=cv2.INTER_LINEAR)
+    
+    return zoomed
+
+
+def apply_post_animation_effect(frames_list, effect_config, frame_rate, target_width, target_height):
+    """Apply post-animation effects like zoom-in or zoom-out.
+    
+    Args:
+        frames_list: List of frames to apply effect to
+        effect_config: Dictionary with effect settings (type, duration, etc.)
+        frame_rate: Video frame rate
+        target_width: Target frame width
+        target_height: Target frame height
+    
+    Returns:
+        List of frames with effect applied
+    """
+    if not effect_config or len(frames_list) == 0:
+        return frames_list
+    
+    effect_type = effect_config.get('type', 'none')
+    duration = effect_config.get('duration', 1.0)
+    start_zoom = effect_config.get('start_zoom', 1.0)
+    end_zoom = effect_config.get('end_zoom', 1.5)
+    
+    if effect_type == 'none':
+        return frames_list
+    
+    effect_frames = int(frame_rate * duration)
+    if effect_frames <= 0:
+        return frames_list
+    
+    # Take the last frame as base
+    base_frame = frames_list[-1].copy()
+    effect_frames_list = []
+    
+    for i in range(effect_frames):
+        progress = i / max(1, effect_frames - 1)
+        
+        if effect_type == 'zoom_in':
+            current_zoom = start_zoom + (end_zoom - start_zoom) * progress
+        elif effect_type == 'zoom_out':
+            current_zoom = end_zoom - (end_zoom - start_zoom) * progress
+        else:
+            effect_frames_list.append(base_frame.copy())
+            continue
+        
+        # Apply zoom
+        camera_config = {
+            'zoom': current_zoom,
+            'position': effect_config.get('focus_position', {'x': 0.5, 'y': 0.5})
+        }
+        
+        transformed = apply_camera_transform(base_frame, camera_config, target_width, target_height)
+        effect_frames_list.append(transformed)
+    
+    return frames_list + effect_frames_list
+
+
 def draw_hand_on_img(
     drawing,
     hand,
@@ -977,6 +1083,49 @@ def draw_layered_whiteboard_animations(
                 if layer_idx < len(sorted_layers) - 1:
                     # More layers coming, reset to white
                     variables.drawn_frame = base_canvas.copy()
+            # Apply camera transformation if specified
+            camera_config = layer.get('camera', None)
+            if camera_config:
+                print(f"    📷 Applying camera: zoom={camera_config.get('zoom', 1.0)}")
+                variables.drawn_frame = apply_camera_transform(
+                    variables.drawn_frame,
+                    camera_config,
+                    variables.resize_wd,
+                    variables.resize_ht
+                )
+            
+            # Apply post-animation effects if specified
+            animation_config = layer.get('animation', None)
+            if animation_config:
+                effect_type = animation_config.get('type', 'none')
+                if effect_type != 'none':
+                    print(f"    🎬 Applying animation effect: {effect_type}")
+                    # Create temporary frames for effect
+                    temp_frames = [variables.drawn_frame.copy()]
+                    effect_frames = apply_post_animation_effect(
+                        temp_frames,
+                        animation_config,
+                        variables.frame_rate,
+                        variables.resize_wd,
+                        variables.resize_ht
+                    )
+                    
+                    # Write additional effect frames
+                    for effect_frame in effect_frames[1:]:  # Skip first frame (already written)
+                        if variables.watermark_path:
+                            effect_frame = apply_watermark(
+                                effect_frame,
+                                variables.watermark_path,
+                                variables.watermark_position,
+                                variables.watermark_opacity,
+                                variables.watermark_scale
+                            )
+                        variables.video_object.write(effect_frame)
+                        variables.frames_written += 1
+                    
+                    # Update drawn_frame to last effect frame
+                    if len(effect_frames) > 0:
+                        variables.drawn_frame = effect_frames[-1].copy()
             
             # Enregistrer les infos de la couche pour l'export JSON
             if variables.export_json:
