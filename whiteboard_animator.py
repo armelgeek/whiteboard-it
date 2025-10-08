@@ -648,6 +648,12 @@ def concatenate_videos(video_paths, output_path, transition_type='none', transit
                 last_frame_np = last_frame.to_ndarray(format='bgr24')
                 first_frame_np = first_frame_of_video.to_ndarray(format='bgr24')
                 
+                # Redimensionner les frames si nécessaire pour correspondre à la résolution de sortie
+                if last_frame_np.shape[:2] != (height, width):
+                    last_frame_np = cv2.resize(last_frame_np, (width, height))
+                if first_frame_np.shape[:2] != (height, width):
+                    first_frame_np = cv2.resize(first_frame_np, (width, height))
+                
                 # Générer les frames de transition
                 transition_frames = generate_transition_frames(
                     last_frame_np, first_frame_np, transition_type, 
@@ -670,6 +676,11 @@ def concatenate_videos(video_paths, output_path, transition_type='none', transit
             for frame in frames_list:
                 # Convertir en numpy puis recréer le frame
                 frame_np = frame.to_ndarray(format='bgr24')
+                
+                # Redimensionner si nécessaire pour correspondre à la résolution de sortie
+                if frame_np.shape[:2] != (height, width):
+                    frame_np = cv2.resize(frame_np, (width, height))
+                
                 av_frame = av.VideoFrame.from_ndarray(frame_np, format='bgr24')
                 # encode() retourne une liste de packets
                 packets = out_stream.encode(av_frame)
