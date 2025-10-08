@@ -301,8 +301,10 @@ Créez des animations de texte sans avoir besoin de créer des images ! Le texte
 - **Couleurs** : RGB tuples, codes hex, noms de couleurs
 - **Alignement** : left, center, right
 - **Position** : Positionnement absolu avec x, y
-- **Animation** : Handwriting, static, eraser
+- **Animation** : Handwriting par colonnes (défaut), SVG path-based (opt-in), static, eraser
 - **Animations d'entrée/sortie** : fade_in, slide_in, zoom_in, etc.
+
+**Note:** Par défaut, le texte utilise l'animation **column-based** (non-SVG) pour une meilleure compatibilité. Pour activer l'animation SVG path-based, ajoutez `"use_svg_paths": true` dans `text_config`.
 
 ### Mélanger texte et images
 
