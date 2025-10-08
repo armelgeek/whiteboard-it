@@ -18,12 +18,16 @@ Application de création d'animations de type "dessin sur tableau blanc" (whiteb
 git clone https://github.com/armelgeek/whiteboard-it.git
 cd whiteboard-it
 
-# Installer les dépendances
+# Installer les dépendances de base
 pip install opencv-python numpy
 
-# Optionnel : pour la conversion H.264
+# Requis pour la conversion H.264 et la concaténation de vidéos multiples
 pip install av
 ```
+
+**Note:** Le module `av` (PyAV) est fortement recommandé pour :
+- La conversion des vidéos en format H.264
+- La combinaison de plusieurs images en une seule vidéo
 
 ## Utilisation
 
@@ -104,6 +108,28 @@ L'export JSON permet de :
 3. **Créer des animations personnalisées** en modifiant les données
 4. **Intégrer dans des applications web** avec Canvas ou WebGL
 5. **Générer des animations procédurales** basées sur les données
+
+## Exemples d'utilisation avancés
+
+### Traitement par lot avec plusieurs images
+
+```bash
+# Créer une animation combinée à partir de 3 images
+python whiteboard_animator.py slide1.png slide2.png slide3.png
+
+# Avec export JSON pour chaque image
+python whiteboard_animator.py slide1.png slide2.png slide3.png --export-json
+
+# Personnaliser la vitesse de dessin
+python whiteboard_animator.py img1.png img2.png --skip-rate 15 --duration 2
+```
+
+### Cas d'usage typiques
+
+- **Présentation animée** : Combiner plusieurs diapositives en une vidéo continue
+- **Tutoriel illustré** : Dessiner étape par étape des diagrammes ou schémas
+- **Story-board animé** : Transformer une série d'images en animation fluide
+- **Contenu éducatif** : Créer des vidéos explicatives avec dessins successifs
 
 ## Structure du projet
 
