@@ -120,13 +120,27 @@ python whiteboard_animator.py --config examples/text_layer_example.json --split-
 ```
 **Fonctionnalités démontrées:**
 - **Couches de texte dynamiques** : Génération de texte à la volée (pas besoin d'images)
+- **🆕 SVG Path-Based Drawing** : Animation VideoScribe-style avec vrais traits de caractères
 - **Support multi-ligne** : Utilisez `\n` pour sauter des lignes
 - **Styles de police** : normal, bold, italic, bold_italic
 - **Couleurs personnalisables** : RGB tuple ou hex (ex: "#FF0000")
 - **Alignement** : left, center, right
 - **Animation handwriting** : Le texte est "écrit" comme avec un stylo
+- **🆕 Contrôles de timing** : Pauses configurables entre caractères
 - **Animations d'entrée/sortie** : Compatible avec fade_in, slide_in, etc.
 - **Position personnalisée** : Placement précis du texte sur le canvas
+
+#### svg_text_showcase.json
+✨ **NOUVEAU** : Démonstration complète du rendu SVG path-based.
+```bash
+python whiteboard_animator.py --config examples/svg_text_showcase.json
+```
+**Fonctionnalités démontrées:**
+- **Animation VideoScribe-style** : Suit l'ordre naturel des traits de caractères
+- **Pauses entre caractères** : Rythme d'écriture plus naturel avec `pause_after_char`
+- **Rendu de haute qualité** : Utilise les contours vectoriels de la police
+- **Multi-couches avec timing** : Combiner plusieurs textes avec timings différents
+- **Fallback automatique** : Retour gracieux vers méthode colonne si SVG indisponible
 
 **Configuration de texte:**
 ```json
@@ -141,10 +155,19 @@ python whiteboard_animator.py --config examples/text_layer_example.json --split-
     "color": "#0066CC",
     "style": "bold",
     "line_height": 1.5,
-    "align": "center"
+    "align": "center",
+    "pause_after_char": 2,
+    "use_svg_paths": true
   }
 }
 ```
+
+**Options de configuration SVG:**
+- `use_svg_paths` (bool, default: true) : Active/désactive le rendu SVG path-based
+- `pause_after_char` (int, default: 0) : Nombre de frames de pause après chaque caractère
+- Si SVG non disponible, retour automatique vers méthode colonne
+
+Voir **[SVG_TEXT_HANDWRITING.md](../SVG_TEXT_HANDWRITING.md)** pour plus de détails.
 
 ### 4. Contrôles de caméra et animations post-dessin
 
