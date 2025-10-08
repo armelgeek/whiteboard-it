@@ -267,6 +267,7 @@ def draw_masked_object(
                 )
             
             variables.video_object.write(drawn_frame_with_hand)
+            variables.frames_written += 1
             
             # Capture animation data if JSON export is enabled
             if variables.export_json:
@@ -341,7 +342,24 @@ def draw_whiteboard_animations(
 
 
     # 5. Fin de la vidéo avec l'image originale en couleur
-    for i in range(variables.frame_rate * variables.end_gray_img_duration_in_sec):
+    # Calculate total frames needed for the specified duration
+    total_frames_needed = int(variables.frame_rate * variables.end_gray_img_duration_in_sec)
+    animation_frames = variables.frames_written
+    remaining_frames = max(0, total_frames_needed - animation_frames)
+    
+    # Display timing information
+    animation_duration = animation_frames / variables.frame_rate
+    final_hold_duration = remaining_frames / variables.frame_rate
+    total_duration = (animation_frames + remaining_frames) / variables.frame_rate
+    
+    print(f"  ⏱️ Animation: {animation_duration:.2f}s ({animation_frames} frames)")
+    print(f"  ⏱️ Final hold: {final_hold_duration:.2f}s ({remaining_frames} frames)")
+    print(f"  ⏱️ Total duration: {total_duration:.2f}s")
+    
+    if animation_frames > total_frames_needed:
+        print(f"  ⚠️ Warning: Animation duration ({animation_duration:.2f}s) exceeds specified duration ({variables.end_gray_img_duration_in_sec}s)")
+    
+    for i in range(remaining_frames):
         final_frame = variables.img.copy()
         # Apply watermark if specified
         if variables.watermark_path:
@@ -353,6 +371,7 @@ def draw_whiteboard_animations(
                 variables.watermark_scale
             )
         variables.video_object.write(final_frame)
+        variables.frames_written += 1
 
     end_time = time.time()
     print(f"Temps total d'exécution pour le dessin: {end_time - start_time:.2f} secondes")
@@ -502,6 +521,9 @@ def draw_layered_whiteboard_animations(
                 skip_rate=layer_skip_rate,
             )
             
+            # Accumulate frame count from this layer
+            variables.frames_written += layer_vars.frames_written
+            
             # Create mask for this layer's content (from the original layer image position)
             layer_mask = np.any(layer_full < 250, axis=2).astype(np.float32)
             layer_mask_3d = np.stack([layer_mask] * 3, axis=2)
@@ -540,7 +562,24 @@ def draw_layered_whiteboard_animations(
             continue
     
     # Afficher l'image finale composée pendant la durée spécifiée
-    for i in range(variables.frame_rate * variables.end_gray_img_duration_in_sec):
+    # Calculate total frames needed for the specified duration
+    total_frames_needed = int(variables.frame_rate * variables.end_gray_img_duration_in_sec)
+    animation_frames = variables.frames_written
+    remaining_frames = max(0, total_frames_needed - animation_frames)
+    
+    # Display timing information
+    animation_duration = animation_frames / variables.frame_rate
+    final_hold_duration = remaining_frames / variables.frame_rate
+    total_duration = (animation_frames + remaining_frames) / variables.frame_rate
+    
+    print(f"  ⏱️ Animation: {animation_duration:.2f}s ({animation_frames} frames)")
+    print(f"  ⏱️ Final hold: {final_hold_duration:.2f}s ({remaining_frames} frames)")
+    print(f"  ⏱️ Total duration: {total_duration:.2f}s")
+    
+    if animation_frames > total_frames_needed:
+        print(f"  ⚠️ Warning: Animation duration ({animation_duration:.2f}s) exceeds specified duration ({variables.end_gray_img_duration_in_sec}s)")
+    
+    for i in range(remaining_frames):
         final_frame = variables.drawn_frame.copy()
         # Appliquer le watermark sur l'image finale uniquement
         if variables.watermark_path:
@@ -552,6 +591,7 @@ def draw_layered_whiteboard_animations(
                 variables.watermark_scale
             )
         variables.video_object.write(final_frame)
+        variables.frames_written += 1
     
     end_time = time.time()
     print(f"  ⏱️ Temps de dessin des couches: {end_time - start_time:.2f} secondes")
@@ -839,6 +879,9 @@ class AllVariables:
         
         # Variables pour l'export JSON
         self.animation_data = None
+        
+        # Frame counter for tracking total frames written
+        self.frames_written = 0
 
 
 def common_divisors(num1, num2):
