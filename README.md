@@ -7,6 +7,7 @@ Application de création d'animations de type "dessin sur tableau blanc" (whiteb
 - ✅ Génération de vidéos d'animation de dessin à partir d'images
 - ✅ **Contrôles de caméra** - Zoom et focus sur des zones spécifiques (NOUVEAU)
 - ✅ **Animations avancées** - Effets de zoom-in/zoom-out post-dessin (NOUVEAU)
+- ✅ **Gomme intelligente** - Effet d'effacement naturel pour les couches superposées (NOUVEAU)
 - ✅ **Couches multiples (layers)** - Superposition d'images sur une même slide avec hiérarchie
 - ✅ **Qualité vidéo améliorée** - CRF ajustable pour une qualité optimale
 - ✅ **Export multi-formats** - Support 1:1, 16:9, 9:16 en HD
@@ -488,6 +489,7 @@ whiteboard-it/
 
 - **[CONFIG_FORMAT.md](CONFIG_FORMAT.md)** - Format de configuration JSON pour personnaliser les slides
 - **[LAYERS_GUIDE.md](LAYERS_GUIDE.md)** - Guide complet pour utiliser les couches multiples
+- **[INTELLIGENT_ERASER.md](INTELLIGENT_ERASER.md)** - Guide de la gomme intelligente pour les superpositions de couches
 - **[EXPORT_FORMAT.md](EXPORT_FORMAT.md)** - Format des données d'animation exportées
 - **[TRANSITIONS.md](TRANSITIONS.md)** - Documentation détaillée des transitions
 - **[examples/README.md](examples/README.md)** - Exemples d'utilisation des données JSON
