@@ -5,8 +5,11 @@ Application de création d'animations de type "dessin sur tableau blanc" (whiteb
 ## Fonctionnalités
 
 - ✅ Génération de vidéos d'animation de dessin à partir d'images
-- ✅ **Support de plusieurs images avec combinaison automatique** (NOUVEAU)
-- ✅ **Transitions entre slides** (fade, wipe, push, iris) (NOUVEAU)
+- ✅ **Qualité vidéo améliorée** - CRF ajustable pour une qualité optimale (NOUVEAU)
+- ✅ **Export multi-formats** - Support 1:1, 16:9, 9:16 en HD (NOUVEAU)
+- ✅ **Filigrane (watermark)** - Ajout de logo/texte avec position et opacité personnalisables (NOUVEAU)
+- ✅ **Support de plusieurs images avec combinaison automatique**
+- ✅ **Transitions entre slides** (fade, wipe, push, iris)
 - ✅ Personnalisation des paramètres (FPS, vitesse, grille)
 - ✅ Export JSON des données d'animation
 - ✅ Support de plusieurs formats d'image
@@ -50,6 +53,44 @@ python whiteboard_animator.py image1.png image2.png image3.png --split-len 15 --
 
 **Note:** Lorsque plusieurs images sont fournies, le script génère une vidéo pour chaque image puis les combine automatiquement en une seule vidéo finale. Chaque image est dessinée dans l'ordre.
 
+### Qualité vidéo et formats d'export (NOUVEAU)
+
+```bash
+# Haute qualité pour YouTube (16:9 HD)
+python whiteboard_animator.py image.png --aspect-ratio 16:9 --quality 18
+
+# Format vertical pour TikTok/Reels (9:16 HD)
+python whiteboard_animator.py image.png --aspect-ratio 9:16 --quality 18
+
+# Format carré pour Instagram (1:1)
+python whiteboard_animator.py image.png --aspect-ratio 1:1 --quality 18
+
+# Qualité moyenne pour fichiers plus légers
+python whiteboard_animator.py image.png --quality 28
+```
+
+### Ajouter un filigrane (watermark) (NOUVEAU)
+
+```bash
+# Ajouter un filigrane en bas à droite
+python whiteboard_animator.py image.png --watermark logo.png
+
+# Filigrane personnalisé (position, opacité, taille)
+python whiteboard_animator.py image.png \
+  --watermark logo.png \
+  --watermark-position top-right \
+  --watermark-opacity 0.7 \
+  --watermark-scale 0.15
+
+# Combinaison: Qualité HD 16:9 avec filigrane
+python whiteboard_animator.py image.png \
+  --aspect-ratio 16:9 \
+  --quality 18 \
+  --watermark logo.png \
+  --watermark-position bottom-right \
+  --watermark-opacity 0.5
+```
+
 ### Export des données d'animation (JSON)
 
 ```bash
@@ -72,12 +113,35 @@ python whiteboard_animator.py image.png --get-split-lens
 
 ## Paramètres
 
+### Paramètres de base
 - `--split-len` : Taille de la grille pour le dessin (par défaut: 15)
 - `--frame-rate` : Images par seconde (par défaut: 30)
 - `--skip-rate` : Vitesse de dessin (plus grand = plus rapide, par défaut: 8)
 - `--duration` : Durée de l'image finale en secondes (par défaut: 3)
+
+### Paramètres de qualité et format (NOUVEAU)
+- `--quality` : Qualité vidéo CRF (0-51, plus bas = meilleure qualité, par défaut: 18)
+  - 18 = Visually lossless (qualité maximale recommandée)
+  - 23 = Haute qualité (bon compromis)
+  - 28 = Qualité moyenne (fichiers plus petits)
+- `--aspect-ratio` : Ratio d'aspect de la vidéo (par défaut: original)
+  - `original` : Conserve le ratio d'aspect de l'image source
+  - `1:1` : Format carré (Instagram, profils)
+  - `16:9` : Format paysage HD (YouTube, télévision)
+  - `9:16` : Format vertical (Stories, Reels, TikTok)
+
+### Paramètres de filigrane (NOUVEAU)
+- `--watermark` : Chemin vers l'image de filigrane (watermark) à appliquer
+- `--watermark-position` : Position du filigrane (par défaut: bottom-right)
+  - Choix: `top-left`, `top-right`, `bottom-left`, `bottom-right`, `center`
+- `--watermark-opacity` : Opacité du filigrane (0.0 à 1.0, par défaut: 0.5)
+- `--watermark-scale` : Échelle du filigrane par rapport à la largeur de la vidéo (0.0 à 1.0, par défaut: 0.1)
+
+### Paramètres de transition
 - `--transition` : Type de transition entre les slides - choix: none, fade, wipe, push_left, push_right, iris (par défaut: none)
 - `--transition-duration` : Durée de la transition en secondes (par défaut: 0.5)
+
+### Autres paramètres
 - `--config` : Fichier JSON pour une configuration personnalisée par slide (durée, vitesse, transitions, pauses, etc.)
 - `--export-json` : Exporter les données d'animation au format JSON
 - `--get-split-lens` : Afficher les valeurs recommandées pour split-len
