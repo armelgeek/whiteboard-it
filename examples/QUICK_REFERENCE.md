@@ -55,19 +55,24 @@ Ce guide vous aide à choisir le bon exemple selon vos besoins.
    python whiteboard_animator.py demo/placeholder.png --config examples/morphing_layers.json --split-len 30
    ```
 
-10. **animation_zoom_in.json** - Animation post-dessin
+10. **intelligent_eraser_example.json** - Gomme intelligente pour superpositions
+    ```bash
+    python whiteboard_animator.py demo/1.jpg --config examples/intelligent_eraser_example.json --split-len 30
+    ```
+
+11. **animation_zoom_in.json** - Animation post-dessin
     ```bash
     python whiteboard_animator.py demo/1.jpg --config examples/animation_zoom_in.json --split-len 30
     ```
 
-11. **cinematic_reveal.json** - Effet cinématique
+12. **cinematic_reveal.json** - Effet cinématique
     ```bash
     python whiteboard_animator.py demo/1.jpg --config examples/cinematic_reveal.json --split-len 30
     ```
 
 ### ⭐ Expert
 
-12. **complete_showcase.json** - Tous les concepts combinés
+13. **complete_showcase.json** - Tous les concepts combinés
     ```bash
     python whiteboard_animator.py demo/placeholder.png demo/placeholder.png --config examples/complete_showcase.json --split-len 30
     ```
@@ -82,6 +87,7 @@ Ce guide vous aide à choisir le bon exemple selon vos besoins.
 ### Couches multiples (Layers)
 - **layers_composition.json** - Superposition simple
 - **advanced_layer_modes.json** - Modes draw/eraser/static
+- **intelligent_eraser_example.json** - Gomme intelligente pour superpositions
 - **entrance_exit_animations.json** - Apparitions/disparitions
 - **morphing_layers.json** - Transitions fluides
 
