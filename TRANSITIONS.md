@@ -99,3 +99,4 @@ pip install opencv-python numpy av
 - Les transitions ne sont appliquées qu'entre les vidéos lors de la concaténation
 - Si une seule image est fournie, aucune transition n'est appliquée
 - La transition `none` est utile si vous voulez désactiver les transitions tout en combinant plusieurs images
+- **Gestion automatique des résolutions**: Les images avec des ratios d'aspect différents sont automatiquement redimensionnées lors de la concaténation pour assurer une transition fluide
