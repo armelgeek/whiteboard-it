@@ -232,11 +232,18 @@ Zoome progressivement de 1.0x à 2.0x en se concentrant sur (0.6, 0.4).
           "scale": 0.3
         },
         {
-          "image_path": "title.png",
-          "position": {"x": 200, "y": 400},
+          "type": "text",
           "z_index": 3,
-          "skip_rate": 25,
-          "opacity": 0.9
+          "skip_rate": 15,
+          "text_config": {
+            "text": "Mon Titre\nAvec sous-titre",
+            "font": "Arial",
+            "size": 64,
+            "color": [0, 0, 255],
+            "style": "bold",
+            "align": "center",
+            "line_height": 1.3
+          }
         }
       ]
     }
@@ -247,7 +254,7 @@ Zoome progressivement de 1.0x à 2.0x en se concentrant sur (0.6, 0.4).
 **Résultat :**
 1. Le fond est dessiné lentement (skip_rate: 5)
 2. Le logo apparaît ensuite rapidement en haut à gauche, réduit à 30%
-3. Le titre apparaît très rapidement en bas, légèrement transparent
+3. Le texte est "écrit" avec animation de handwriting au centre
 
 ### Exemple 2 : Diagramme avec annotations
 
@@ -611,11 +618,43 @@ Pour un effet cinématique maximal :
 
 ## Fonctionnalités avancées
 
+### Types de couches
+
+**Type `image` (défaut)** :
+- Utilise une image existante (PNG, JPG, etc.)
+- Nécessite `image_path` pour spécifier le fichier
+
+**Type `text`** :
+- Génère dynamiquement du texte
+- Nécessite `text_config` avec le texte et les paramètres
+- Support multi-ligne avec `\n`
+- Supporte différentes polices, tailles, couleurs et styles
+- Animation de handwriting automatique
+
+**Exemple de couche texte :**
+```json
+{
+  "type": "text",
+  "z_index": 2,
+  "skip_rate": 12,
+  "text_config": {
+    "text": "Bonjour!\nCeci est un texte\nsur plusieurs lignes",
+    "font": "DejaVuSans",
+    "size": 48,
+    "color": "#FF0000",
+    "style": "bold",
+    "line_height": 1.5,
+    "align": "center"
+  }
+}
+```
+
 ### Modes de dessin
 
 **Mode `draw` (défaut)** :
 - Animation classique avec la main qui dessine
 - Recommandé pour le contenu principal
+- Fonctionne avec les types `image` et `text`
 
 **Mode `eraser`** :
 - Utilise une gomme au lieu de la main
@@ -643,7 +682,7 @@ Le morphing crée une transition fluide entre deux couches :
 - Durée recommandée : 0.3-0.8 secondes
 5. **Zoom de caméra** : Le zoom ne peut pas ajouter de détails au-delà de la résolution originale
 6. **Animations** : Les effets de zoom peuvent augmenter le temps de rendu et la taille du fichier
-7. **Type text** : Les animations de texte en typewriting ne sont pas encore implémentées (prévu pour une version future)
+7. **Type text** : ✅ Désormais implémenté ! Utilisez `type: "text"` avec `text_config` pour générer du texte dynamique
 
 ## Ressources complémentaires
 

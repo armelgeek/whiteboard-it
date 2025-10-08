@@ -111,24 +111,36 @@ Standard image layers (default type).
 ```
 
 ### Text Layers
-Text layers with typewriting animation support (future enhancement).
+Text layers with handwriting animation support - renders real text dynamically!
 
 ```json
 {
   "type": "text",
-  "image_path": "path/to/text-image.png",
-  "position": {"x": 100, "y": 200},
   "z_index": 2,
+  "skip_rate": 10,
   "text_config": {
+    "text": "Hello World!\nMultiple lines supported.",
     "font": "Arial",
-    "size": 32,
+    "size": 48,
+    "color": [0, 0, 255],
     "style": "bold",
-    "speed": 0.05
+    "line_height": 1.5,
+    "align": "center"
   }
 }
 ```
 
-**Note:** Text layer animations are planned for future implementation. Currently, text should be provided as images.
+**Text Configuration Options:**
+- `text`: The text content (use `\n` for line breaks)
+- `font`: Font family name (default: "Arial")
+- `size`: Font size in pixels (default: 32)
+- `color`: RGB tuple like `[255, 0, 0]` or hex like `"#FF0000"` (default: black)
+- `style`: "normal", "bold", "italic", or "bold_italic" (default: "normal")
+- `line_height`: Line spacing multiplier (default: 1.2)
+- `align`: "left", "center", or "right" (default: "left")
+- `position`: Optional dict with `x`, `y` for absolute positioning (default: centered)
+
+**Note:** Text layers are rendered to images dynamically and can be animated with handwriting effect using the standard layer animation system.
 
 ## Configuration Examples
 
