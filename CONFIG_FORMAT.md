@@ -141,6 +141,48 @@ Une slide peut contenir plusieurs images superposées (layers), chacune position
 | `skip_rate` | int | Vitesse de dessin spécifique à cette couche | Hérite de la slide |
 | `scale` | float | Échelle de l'image (1.0 = taille originale) | 1.0 |
 | `opacity` | float | Opacité de la couche (0.0 à 1.0) | 1.0 |
+| `mode` | string | Mode de dessin: `draw` (main), `eraser` (gomme), `static` (sans animation) | `draw` |
+| `entrance_animation` | object | Animation d'entrée (voir détails ci-dessous) | null |
+| `exit_animation` | object | Animation de sortie (voir détails ci-dessous) | null |
+| `morph` | object | Morphing depuis la couche précédente (voir détails ci-dessous) | null |
+
+##### Mode de dessin (`mode`)
+
+- **`draw`** (par défaut): Dessine avec l'animation de la main
+- **`eraser`**: Dessine avec l'animation d'une gomme (pour effet d'effacement)
+- **`static`**: Affiche l'image sans animation de dessin (apparaît directement)
+
+##### Animations d'entrée et de sortie
+
+Les animations peuvent être appliquées à l'apparition (`entrance_animation`) ou à la disparition (`exit_animation`) d'une couche.
+
+**Propriétés:**
+- `type`: Type d'animation (`fade_in`, `fade_out`, `slide_in_left`, `slide_in_right`, `slide_in_top`, `slide_in_bottom`, `slide_out_left`, `slide_out_right`, `slide_out_top`, `slide_out_bottom`, `zoom_in`, `zoom_out`, `none`)
+- `duration`: Durée de l'animation en secondes (défaut: 0.5)
+
+**Exemple:**
+```json
+"entrance_animation": {
+  "type": "fade_in",
+  "duration": 1.0
+}
+```
+
+##### Morphing (`morph`)
+
+Permet une transition fluide en morphing depuis la couche précédente.
+
+**Propriétés:**
+- `enabled`: Active le morphing (true/false)
+- `duration`: Durée du morphing en secondes
+
+**Exemple:**
+```json
+"morph": {
+  "enabled": true,
+  "duration": 0.5
+}
+```
 
 #### Exemple avec couches
 
@@ -183,6 +225,70 @@ Dans cet exemple :
 - element1.png est dessiné ensuite à la position (100, 150) avec une échelle de 50%
 - element2.png est dessiné en dernier à la position (500, 200) avec 80% d'opacité
 - Chaque couche a sa propre vitesse de dessin
+
+#### Exemple avec les nouvelles fonctionnalités
+
+```json
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 10,
+      "layers": [
+        {
+          "image_path": "background.png",
+          "position": {"x": 0, "y": 0},
+          "z_index": 1,
+          "skip_rate": 8,
+          "mode": "draw"
+        },
+        {
+          "image_path": "element_to_erase.png",
+          "position": {"x": 200, "y": 150},
+          "z_index": 2,
+          "skip_rate": 15,
+          "mode": "eraser",
+          "entrance_animation": {
+            "type": "fade_in",
+            "duration": 1.0
+          }
+        },
+        {
+          "image_path": "logo.png",
+          "position": {"x": 50, "y": 50},
+          "z_index": 3,
+          "scale": 0.3,
+          "mode": "static",
+          "entrance_animation": {
+            "type": "zoom_in",
+            "duration": 1.5
+          },
+          "exit_animation": {
+            "type": "fade_out",
+            "duration": 1.0
+          }
+        },
+        {
+          "image_path": "text.png",
+          "position": {"x": 300, "y": 400},
+          "z_index": 4,
+          "mode": "draw",
+          "morph": {
+            "enabled": true,
+            "duration": 0.5
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+Dans cet exemple avancé :
+- Le fond est dessiné normalement avec la main
+- Un élément est "effacé" avec l'animation d'une gomme et apparaît avec un fondu
+- Un logo apparaît statiquement (sans main) avec un zoom-in et disparaît avec un fondu
+- Un texte apparaît avec un morphing depuis la couche précédente
 
 **Note:** Lorsque `layers` est spécifié, l'image de la ligne de commande pour cette slide n'est pas utilisée. Toutes les images doivent être définies dans les couches.
 
