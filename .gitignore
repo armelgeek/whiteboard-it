@@ -10,3 +10,6 @@ __pycache__/
 dist/
 build/
 
+# Test files
+test_images/
+test_*.json

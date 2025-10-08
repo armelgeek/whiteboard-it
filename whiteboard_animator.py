@@ -1826,8 +1826,16 @@ def main():
     print("="*50)
 
     # Traitement unique ou multiple
-    if len(valid_images) == 1:
-        # Une seule image - utiliser l'ancienne méthode
+    # Vérifier si la configuration contient des couches pour la première slide
+    has_layers_config = False
+    if per_slide_config and 'slides' in per_slide_config:
+        for slide_cfg in per_slide_config['slides']:
+            if 'layers' in slide_cfg:
+                has_layers_config = True
+                break
+    
+    if len(valid_images) == 1 and not has_layers_config:
+        # Une seule image sans configuration de couches - utiliser l'ancienne méthode
         def final_callback_cli(result):
             """Fonction de rappel appelée à la fin de la génération."""
             if result["status"]:
