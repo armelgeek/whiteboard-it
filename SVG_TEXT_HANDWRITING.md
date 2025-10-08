@@ -1,8 +1,28 @@
-# SVG-Based Text Handwriting Implementation
+# SVG-Based Text Handwriting Implementation (Opt-In Feature)
 
 ## Overview
 
 This implementation adds **VideoScribe-style text handwriting animation** using SVG path extraction from font outlines. This provides a more natural and authentic handwriting effect that follows the actual character strokes defined in the font.
+
+**⚠️ Important:** As of the latest update, this feature is **opt-in**. By default, text layers use the simpler column-based approach. To enable SVG path-based drawing, add `"use_svg_paths": true` to your text configuration.
+
+## Default vs Opt-In Behavior
+
+### Default (Column-Based)
+Text layers use a simpler, pixel-based column-by-column approach that works on all systems without additional dependencies.
+
+### Opt-In (SVG Path-Based)
+When you explicitly set `"use_svg_paths": true`, the system will attempt to use SVG path extraction for more authentic character stroke order.
+
+**To enable SVG path-based drawing:**
+```json
+{
+  "text_config": {
+    "text": "Hello World!",
+    "use_svg_paths": true
+  }
+}
+```
 
 ## How It Works (VideoScribe Approach)
 

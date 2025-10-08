@@ -406,7 +406,7 @@ def draw_svg_path_handwriting(
         variables.drawn_frame[:, :, :] = variables.img
     
     # Check if user explicitly disabled SVG path-based drawing
-    use_svg_paths = True
+    use_svg_paths = True  # Within this function, we assume user wants SVG
     pause_after_char = 0
     pause_after_word = 0
     
@@ -464,7 +464,7 @@ def draw_svg_path_handwriting(
     
     # If path-based extraction failed, fall back to column-based
     if not use_path_based:
-        print(f"  📝 Using column-based drawing (SVG extraction not available)")
+        print(f"  ⚠️  SVG path extraction failed, falling back to column-based drawing")
         # Fall back to existing column-based method
         draw_text_handwriting(
             variables, skip_rate, mode,
@@ -1777,16 +1777,31 @@ def draw_layered_whiteboard_animations(
                 # Use text-specific drawing for text layers, tile-based for images
                 if layer_type == 'text':
                     text_config = layer.get('text_config', {})
-                    draw_svg_path_handwriting(
-                        variables=layer_vars,
-                        skip_rate=layer_skip_rate,
-                        mode='eraser',
-                        eraser=eraser,
-                        eraser_mask_inv=eraser_mask_inv,
-                        eraser_ht=eraser_ht,
-                        eraser_wd=eraser_wd,
-                        text_config=text_config
-                    )
+                    # Check if user explicitly wants SVG path-based drawing
+                    use_svg_paths = text_config.get('use_svg_paths', False)
+                    
+                    if use_svg_paths:
+                        draw_svg_path_handwriting(
+                            variables=layer_vars,
+                            skip_rate=layer_skip_rate,
+                            mode='eraser',
+                            eraser=eraser,
+                            eraser_mask_inv=eraser_mask_inv,
+                            eraser_ht=eraser_ht,
+                            eraser_wd=eraser_wd,
+                            text_config=text_config
+                        )
+                    else:
+                        # Use column-based drawing (non-SVG approach)
+                        draw_text_handwriting(
+                            variables=layer_vars,
+                            skip_rate=layer_skip_rate,
+                            mode='eraser',
+                            eraser=eraser,
+                            eraser_mask_inv=eraser_mask_inv,
+                            eraser_ht=eraser_ht,
+                            eraser_wd=eraser_wd
+                        )
                 else:
                     draw_masked_object(
                         variables=layer_vars,
@@ -1802,14 +1817,25 @@ def draw_layered_whiteboard_animations(
                 # Use text-specific drawing for text layers, tile-based for images
                 if layer_type == 'text':
                     print(f"    ✍️  Mode handwriting (text)")
-                    # Try SVG path-based drawing first, fall back to column-based
                     text_config = layer.get('text_config', {})
-                    draw_svg_path_handwriting(
-                        variables=layer_vars,
-                        skip_rate=layer_skip_rate,
-                        mode='draw',
-                        text_config=text_config
-                    )
+                    # Check if user explicitly wants SVG path-based drawing
+                    use_svg_paths = text_config.get('use_svg_paths', False)
+                    
+                    if use_svg_paths:
+                        # Use SVG path-based drawing (opt-in)
+                        draw_svg_path_handwriting(
+                            variables=layer_vars,
+                            skip_rate=layer_skip_rate,
+                            mode='draw',
+                            text_config=text_config
+                        )
+                    else:
+                        # Use column-based drawing by default (non-SVG approach)
+                        draw_text_handwriting(
+                            variables=layer_vars,
+                            skip_rate=layer_skip_rate,
+                            mode='draw'
+                        )
                 else:
                     draw_masked_object(
                         variables=layer_vars,
