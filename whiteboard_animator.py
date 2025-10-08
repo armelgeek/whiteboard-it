@@ -259,9 +259,12 @@ def convert_glyph_paths_to_points(char_paths, font_size, text_config, target_wid
         target_height: Canvas height
         
     Returns:
-        List of drawing segments (sequences of points)
+        Tuple of (drawing_segments, char_boundaries)
+        - drawing_segments: List of drawing segments (sequences of points)
+        - char_boundaries: List of segment indices where each character ends
     """
     drawing_segments = []
+    char_boundaries = []  # Track segment indices where characters end
     
     # Get text configuration
     text = text_config.get('text', '')
@@ -316,6 +319,8 @@ def convert_glyph_paths_to_points(char_paths, font_size, text_config, target_wid
             if char_data.get('is_space', False):
                 if char_data['char'] == ' ':
                     current_x += font_size * 0.3
+                    # Mark space as character boundary
+                    char_boundaries.append(len(drawing_segments))
                 continue
                 
             paths = char_data.get('paths', [])
@@ -358,6 +363,9 @@ def convert_glyph_paths_to_points(char_paths, font_size, text_config, target_wid
                 
             drawing_segments.extend(char_segments)
             
+            # Mark where this character ends
+            char_boundaries.append(len(drawing_segments))
+            
             # Advance x for next character
             if char_segments:
                 max_x = max(pt[0] for seg in char_segments for pt in seg)
@@ -368,7 +376,7 @@ def convert_glyph_paths_to_points(char_paths, font_size, text_config, target_wid
         current_y += line_height
         line_char_idx += len(line) + 1  # +1 for newline
     
-    return drawing_segments
+    return drawing_segments, char_boundaries
 
 
 def draw_svg_path_handwriting(
@@ -391,18 +399,26 @@ def draw_svg_path_handwriting(
         skip_rate: Frame skip rate for animation speed
         mode: 'draw' for normal drawing, 'eraser' for eraser mode
         text_config: Optional text configuration for path extraction
+                     - pause_after_char: frames to pause after each character (default: 0)
+                     - pause_after_word: frames to pause after each word (default: 0)
     """
     if mode == 'eraser':
         variables.drawn_frame[:, :, :] = variables.img
     
     # Check if user explicitly disabled SVG path-based drawing
     use_svg_paths = True
+    pause_after_char = 0
+    pause_after_word = 0
+    
     if text_config:
         use_svg_paths = text_config.get('use_svg_paths', True)
+        pause_after_char = text_config.get('pause_after_char', 0)
+        pause_after_word = text_config.get('pause_after_word', 0)
     
     # Try to extract paths if enabled and text_config is provided
     use_path_based = False
     drawing_segments = []
+    char_boundaries = []  # Track where each character ends
     
     if use_svg_paths and text_config:
         text = text_config.get('text', '')
@@ -436,13 +452,15 @@ def draw_svg_path_handwriting(
             char_paths = extract_character_paths(text, font_path, font_size)
             if char_paths:
                 # Convert to drawing segments
-                drawing_segments = convert_glyph_paths_to_points(
+                result = convert_glyph_paths_to_points(
                     char_paths, font_size, text_config, 
                     variables.resize_wd, variables.resize_ht
                 )
-                if drawing_segments:
-                    use_path_based = True
-                    print(f"  ✨ Using SVG path-based drawing ({len(drawing_segments)} segments)")
+                if result:
+                    drawing_segments, char_boundaries = result
+                    if drawing_segments:
+                        use_path_based = True
+                        print(f"  ✨ Using SVG path-based drawing ({len(drawing_segments)} segments, {len(char_boundaries)} chars)")
     
     # If path-based extraction failed, fall back to column-based
     if not use_path_based:
@@ -456,6 +474,8 @@ def draw_svg_path_handwriting(
     
     # Draw using path-based approach
     counter = 0
+    current_char_idx = 0
+    
     for seg_idx, segment in enumerate(drawing_segments):
         if len(segment) < 2:
             continue
@@ -526,6 +546,25 @@ def draw_svg_path_handwriting(
                 
                 variables.video_object.write(drawn_frame_with_hand)
                 variables.frames_written += 1
+        
+        # Check if we've finished a character and should pause
+        if current_char_idx < len(char_boundaries) and seg_idx + 1 >= char_boundaries[current_char_idx]:
+            # Finished a character
+            if pause_after_char > 0:
+                # Hold the current frame for pause
+                for _ in range(pause_after_char):
+                    if variables.watermark_path:
+                        drawn_frame_with_hand = apply_watermark(
+                            drawn_frame_with_hand,
+                            variables.watermark_path,
+                            variables.watermark_position,
+                            variables.watermark_opacity,
+                            variables.watermark_scale
+                        )
+                    variables.video_object.write(drawn_frame_with_hand)
+                    variables.frames_written += 1
+            
+            current_char_idx += 1
     
     # Final reveal - overlay complete image
     if mode != 'eraser':

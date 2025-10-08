@@ -29,8 +29,17 @@ The animation works by:
 ### 4. Timing Control
 The speed and flow are controlled by:
 - `skip_rate`: Lower values = slower, more detailed animation
+- `pause_after_char`: Frames to pause after each character (creates more natural rhythm)
+- `pause_after_word`: Frames to pause after each word (future enhancement)
 - Character spacing and line height affect drawing duration
 - Each path segment is drawn smoothly with hand following
+
+### 5. Natural Writing Flow
+The animation creates realistic handwriting by:
+- Following font-defined stroke order
+- Smooth hand movement along character paths
+- Optional pauses between characters for natural rhythm
+- Progressive reveal as text is written
 
 ## Technical Implementation
 
@@ -132,6 +141,21 @@ If SVG path extraction fails (font not found, no glyph data), the system automat
 }
 ```
 
+### With Timing Controls (Pauses Between Characters)
+
+```json
+{
+  "type": "text",
+  "skip_rate": 2,
+  "text_config": {
+    "text": "Hello World!",
+    "size": 72,
+    "pause_after_char": 3,
+    "align": "center"
+  }
+}
+```
+
 ### Disable SVG Path-Based (Use Column-Based)
 
 ```json
@@ -161,6 +185,8 @@ If SVG path extraction fails (font not found, no glyph data), the system automat
 | `align` | string | "left" | "left", "center", "right" |
 | `position` | dict | null | Optional `{x, y}` for absolute positioning |
 | `use_svg_paths` | bool | true | Enable/disable SVG path-based drawing |
+| `pause_after_char` | int | 0 | Number of frames to pause after each character |
+| `pause_after_word` | int | 0 | Number of frames to pause after each word (not yet implemented) |
 
 ### Layer Configuration
 
