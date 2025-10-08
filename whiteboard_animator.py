@@ -26,6 +26,14 @@ hand_mask_path = os.path.join(images_path, 'hand-mask.png')
 save_path = os.path.join(base_path, "save_videos")
 platform = "linux"
 
+# Default values for video generation
+DEFAULT_FRAME_RATE = 30
+DEFAULT_SPLIT_LEN = 15
+DEFAULT_OBJECT_SKIP_RATE = 8
+DEFAULT_BG_OBJECT_SKIP_RATE = 20
+DEFAULT_MAIN_IMG_DURATION = 3
+DEFAULT_CRF = 18  # Lower = better quality (0-51, 18 is visually lossless)
+
 # --- Classes et Fonctions ---
 
 def euc_dist(arr1, point):
@@ -252,6 +260,16 @@ def draw_masked_object(
 
         counter += 1
         if counter % skip_rate == 0 or len(cut_black_indices) == 0:
+            # Apply watermark if specified
+            if variables.watermark_path:
+                drawn_frame_with_hand = apply_watermark(
+                    drawn_frame_with_hand,
+                    variables.watermark_path,
+                    variables.watermark_position,
+                    variables.watermark_opacity,
+                    variables.watermark_scale
+                )
+            
             variables.video_object.write(drawn_frame_with_hand)
             
             # Capture animation data if JSON export is enabled
@@ -328,7 +346,17 @@ def draw_whiteboard_animations(
 
     # 5. Fin de la vidéo avec l'image originale en couleur
     for i in range(variables.frame_rate * variables.end_gray_img_duration_in_sec):
-        variables.video_object.write(variables.img)
+        final_frame = variables.img.copy()
+        # Apply watermark if specified
+        if variables.watermark_path:
+            final_frame = apply_watermark(
+                final_frame,
+                variables.watermark_path,
+                variables.watermark_position,
+                variables.watermark_opacity,
+                variables.watermark_scale
+            )
+        variables.video_object.write(final_frame)
 
     end_time = time.time()
     print(f"Temps total d'exécution pour le dessin: {end_time - start_time:.2f} secondes")
@@ -394,6 +422,182 @@ def find_nearest_res(given):
     idx = (np.abs(arr - given)).argmin()
     return arr[idx]
 
+
+def calculate_aspect_ratio_dimensions(original_width, original_height, aspect_ratio):
+    """Calculate dimensions for a specific aspect ratio.
+    
+    Args:
+        original_width: Original image width
+        original_height: Original image height
+        aspect_ratio: Target aspect ratio string ('1:1', '16:9', '9:16', 'original')
+    
+    Returns:
+        tuple: (width, height) for the target aspect ratio
+    """
+    if aspect_ratio == 'original':
+        return original_width, original_height
+    
+    # Parse aspect ratio
+    if aspect_ratio == '1:1':
+        ratio_w, ratio_h = 1, 1
+    elif aspect_ratio == '16:9':
+        ratio_w, ratio_h = 16, 9
+    elif aspect_ratio == '9:16':
+        ratio_w, ratio_h = 9, 16
+    else:
+        return original_width, original_height
+    
+    # Calculate dimensions maintaining the aspect ratio
+    target_ratio = ratio_w / ratio_h
+    original_ratio = original_width / original_height
+    
+    # Determine base dimension (use the larger dimension as reference)
+    if aspect_ratio == '1:1':
+        # For 1:1, use the smaller dimension to avoid too much cropping
+        base = min(original_width, original_height)
+        width = height = find_nearest_res(base)
+    elif aspect_ratio == '16:9':
+        # HD 16:9 resolutions
+        if original_height >= 1080:
+            width, height = 1920, 1080
+        elif original_height >= 720:
+            width, height = 1280, 720
+        else:
+            height = find_nearest_res(original_height)
+            width = find_nearest_res(int(height * target_ratio))
+    elif aspect_ratio == '9:16':
+        # Vertical video resolutions
+        if original_width >= 1080:
+            width, height = 1080, 1920
+        elif original_width >= 720:
+            width, height = 720, 1280
+        else:
+            width = find_nearest_res(original_width)
+            height = find_nearest_res(int(width / target_ratio))
+    else:
+        width, height = original_width, original_height
+    
+    return width, height
+
+
+def apply_aspect_ratio_padding(image, target_width, target_height):
+    """Apply padding to maintain aspect ratio with letterboxing/pillarboxing.
+    
+    Args:
+        image: Input image (numpy array)
+        target_width: Target width
+        target_height: Target height
+    
+    Returns:
+        Padded image with white background
+    """
+    img_height, img_width = image.shape[:2]
+    
+    # Calculate scaling to fit within target dimensions
+    scale = min(target_width / img_width, target_height / img_height)
+    new_width = int(img_width * scale)
+    new_height = int(img_height * scale)
+    
+    # Resize image
+    resized = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_LANCZOS4)
+    
+    # Create white canvas
+    canvas = np.ones((target_height, target_width, 3), dtype=np.uint8) * 255
+    
+    # Calculate position to center the image
+    x_offset = (target_width - new_width) // 2
+    y_offset = (target_height - new_height) // 2
+    
+    # Place image on canvas
+    canvas[y_offset:y_offset + new_height, x_offset:x_offset + new_width] = resized
+    
+    return canvas
+
+
+def apply_watermark(frame, watermark_path, position='bottom-right', opacity=0.5, scale=0.1):
+    """Apply watermark to a frame.
+    
+    Args:
+        frame: Input frame (numpy array)
+        watermark_path: Path to watermark image
+        position: Position string ('top-left', 'top-right', 'bottom-left', 'bottom-right', 'center')
+        opacity: Watermark opacity (0.0 to 1.0)
+        scale: Scale of watermark relative to frame width (0.0 to 1.0)
+    
+    Returns:
+        Frame with watermark applied
+    """
+    if not watermark_path or not os.path.exists(watermark_path):
+        return frame
+    
+    try:
+        # Load watermark
+        watermark = cv2.imread(watermark_path, cv2.IMREAD_UNCHANGED)
+        if watermark is None:
+            print(f"⚠️ Warning: Could not load watermark from {watermark_path}")
+            return frame
+        
+        # Calculate watermark size
+        frame_height, frame_width = frame.shape[:2]
+        watermark_width = int(frame_width * scale)
+        watermark_height = int(watermark.shape[0] * (watermark_width / watermark.shape[1]))
+        watermark_resized = cv2.resize(watermark, (watermark_width, watermark_height))
+        
+        # Handle alpha channel
+        if watermark_resized.shape[2] == 4:
+            # Has alpha channel
+            watermark_bgr = watermark_resized[:, :, :3]
+            watermark_alpha = watermark_resized[:, :, 3] / 255.0 * opacity
+        else:
+            # No alpha channel, use opacity
+            watermark_bgr = watermark_resized
+            watermark_alpha = np.ones((watermark_height, watermark_width)) * opacity
+        
+        # Calculate position
+        margin = 20
+        if position == 'top-left':
+            y1, y2 = margin, margin + watermark_height
+            x1, x2 = margin, margin + watermark_width
+        elif position == 'top-right':
+            y1, y2 = margin, margin + watermark_height
+            x1, x2 = frame_width - watermark_width - margin, frame_width - margin
+        elif position == 'bottom-left':
+            y1, y2 = frame_height - watermark_height - margin, frame_height - margin
+            x1, x2 = margin, margin + watermark_width
+        elif position == 'bottom-right':
+            y1, y2 = frame_height - watermark_height - margin, frame_height - margin
+            x1, x2 = frame_width - watermark_width - margin, frame_width - margin
+        elif position == 'center':
+            y1, y2 = (frame_height - watermark_height) // 2, (frame_height + watermark_height) // 2
+            x1, x2 = (frame_width - watermark_width) // 2, (frame_width + watermark_width) // 2
+        else:
+            # Default to bottom-right
+            y1, y2 = frame_height - watermark_height - margin, frame_height - margin
+            x1, x2 = frame_width - watermark_width - margin, frame_width - margin
+        
+        # Ensure bounds are within frame
+        y1, y2 = max(0, y1), min(frame_height, y2)
+        x1, x2 = max(0, x1), min(frame_width, x2)
+        
+        # Adjust watermark size if it doesn't fit
+        actual_height = y2 - y1
+        actual_width = x2 - x1
+        if actual_height != watermark_height or actual_width != watermark_width:
+            watermark_bgr = watermark_bgr[:actual_height, :actual_width]
+            watermark_alpha = watermark_alpha[:actual_height, :actual_width]
+        
+        # Apply watermark using alpha blending
+        roi = frame[y1:y2, x1:x2]
+        for c in range(3):
+            roi[:, :, c] = roi[:, :, c] * (1 - watermark_alpha) + watermark_bgr[:, :, c] * watermark_alpha
+        
+        frame[y1:y2, x1:x2] = roi
+        
+    except Exception as e:
+        print(f"⚠️ Warning: Error applying watermark: {e}")
+    
+    return frame
+
 class AllVariables:
     """Classe conteneur pour toutes les variables et paramètres du processus."""
     def __init__(
@@ -406,6 +610,10 @@ class AllVariables:
         bg_object_skip_rate=None,
         end_gray_img_duration_in_sec=None,
         export_json=False,
+        watermark_path=None,
+        watermark_position='bottom-right',
+        watermark_opacity=0.5,
+        watermark_scale=0.1,
     ):
         self.frame_rate = frame_rate
         self.resize_wd = resize_wd
@@ -415,6 +623,10 @@ class AllVariables:
         self.bg_object_skip_rate = bg_object_skip_rate
         self.end_gray_img_duration_in_sec = end_gray_img_duration_in_sec
         self.export_json = export_json
+        self.watermark_path = watermark_path
+        self.watermark_position = watermark_position
+        self.watermark_opacity = watermark_opacity
+        self.watermark_scale = watermark_scale
         
         # Variables qui seront ajoutées plus tard
         self.img_ht = None
@@ -445,8 +657,15 @@ def common_divisors(num1, num2):
     return common_divs
 
 
-def ffmpeg_convert(source_vid, dest_vid, platform="linux"):
-    """Convertit la vidéo brute (mp4v) en H.264 compatible avec PyAV."""
+def ffmpeg_convert(source_vid, dest_vid, platform="linux", crf=18):
+    """Convertit la vidéo brute (mp4v) en H.264 compatible avec PyAV.
+    
+    Args:
+        source_vid: Chemin de la vidéo source
+        dest_vid: Chemin de la vidéo de destination
+        platform: Plateforme cible
+        crf: Constant Rate Factor (0-51, lower = better quality, 18 is visually lossless)
+    """
     ff_stat = False
     try:
         import av
@@ -464,7 +683,7 @@ def ffmpeg_convert(source_vid, dest_vid, platform="linux"):
         out_stream.width = width
         out_stream.height = height
         out_stream.pix_fmt = "yuv420p"
-        out_stream.options = {"crf": "20"}
+        out_stream.options = {"crf": str(crf)}
 
         for frame in input_container.decode(video=0):
             packet = out_stream.encode(frame)
@@ -580,7 +799,7 @@ def generate_transition_frames(frame1, frame2, transition_type, num_frames, fps)
     return transition_frames
 
 
-def concatenate_videos(video_paths, output_path, transition_type='none', transition_duration=0.5, per_slide_transitions=None):
+def concatenate_videos(video_paths, output_path, transition_type='none', transition_duration=0.5, per_slide_transitions=None, crf=18):
     """Concatène plusieurs vidéos en une seule vidéo finale avec transitions optionnelles.
     
     Args:
@@ -589,6 +808,7 @@ def concatenate_videos(video_paths, output_path, transition_type='none', transit
         transition_type: Type de transition par défaut ('none', 'fade', 'wipe', 'push_left', 'push_right', 'iris')
         transition_duration: Durée de la transition en secondes (par défaut)
         per_slide_transitions: Liste de dicts avec configs de transition par slide
+        crf: Constant Rate Factor for video quality (0-51, lower = better quality)
     """
     try:
         import av
@@ -623,7 +843,7 @@ def concatenate_videos(video_paths, output_path, transition_type='none', transit
         out_stream.width = width
         out_stream.height = height
         out_stream.pix_fmt = "yuv420p"
-        out_stream.options = {"crf": "20"}
+        out_stream.options = {"crf": str(crf)}
         
         last_frame = None
         
@@ -768,7 +988,7 @@ def concatenate_videos(video_paths, output_path, transition_type='none', transit
             return False
 
 
-def initiate_sketch_sync(image_path, split_len, frame_rate, object_skip_rate, bg_object_skip_rate, main_img_duration, callback, save_path=save_path, which_platform="linux", export_json=False):
+def initiate_sketch_sync(image_path, split_len, frame_rate, object_skip_rate, bg_object_skip_rate, main_img_duration, callback, save_path=save_path, which_platform="linux", export_json=False, aspect_ratio='original', crf=DEFAULT_CRF, watermark_path=None, watermark_position='bottom-right', watermark_opacity=0.5, watermark_scale=0.1):
     """Version synchrone de initiate_sketch pour l'exécution en ligne de commande (sans Kivy Clock)."""
     global platform
     platform = which_platform
@@ -796,17 +1016,27 @@ def initiate_sketch_sync(image_path, split_len, frame_rate, object_skip_rate, bg
         os.makedirs(os.path.dirname(save_video_path), exist_ok=True)
         print(f"Chemin de sauvegarde brut: {save_video_path}")
 
+        # Calculate dimensions based on aspect ratio
         img_ht, img_wd = image_bgr.shape[0], image_bgr.shape[1]
-        aspect_ratio = img_wd / img_ht
-        img_ht = find_nearest_res(img_ht)
-        new_aspect_wd = int(img_ht * aspect_ratio)
-        img_wd = find_nearest_res(new_aspect_wd)
-        print(f"Résolution cible: {img_wd}x{img_ht}")
+        
+        if aspect_ratio != 'original':
+            img_wd, img_ht = calculate_aspect_ratio_dimensions(img_wd, img_ht, aspect_ratio)
+            print(f"Ratio d'aspect: {aspect_ratio}, Résolution cible: {img_wd}x{img_ht}")
+            # Apply padding to maintain aspect ratio
+            image_bgr = apply_aspect_ratio_padding(image_bgr, img_wd, img_ht)
+        else:
+            original_aspect_ratio = img_wd / img_ht
+            img_ht = find_nearest_res(img_ht)
+            new_aspect_wd = int(img_ht * original_aspect_ratio)
+            img_wd = find_nearest_res(new_aspect_wd)
+            print(f"Résolution cible: {img_wd}x{img_ht}")
 
         variables = AllVariables(
             frame_rate=frame_rate, resize_wd=img_wd, resize_ht=img_ht, split_len=split_len, 
             object_skip_rate=object_skip_rate, bg_object_skip_rate=bg_object_skip_rate, 
-            end_gray_img_duration_in_sec=main_img_duration, export_json=export_json
+            end_gray_img_duration_in_sec=main_img_duration, export_json=export_json,
+            watermark_path=watermark_path, watermark_position=watermark_position,
+            watermark_opacity=watermark_opacity, watermark_scale=watermark_scale
         )
 
         draw_whiteboard_animations(
@@ -817,7 +1047,7 @@ def initiate_sketch_sync(image_path, split_len, frame_rate, object_skip_rate, bg
         if export_json:
             export_animation_json(variables, json_export_path)
         
-        ff_stat = ffmpeg_convert(source_vid=save_video_path, dest_vid=ffmpeg_video_path, platform=platform)
+        ff_stat = ffmpeg_convert(source_vid=save_video_path, dest_vid=ffmpeg_video_path, platform=platform, crf=crf)
         
         if ff_stat:
             final_result = {"status": True, "message": f"{ffmpeg_video_path}"}
@@ -836,7 +1066,7 @@ def initiate_sketch_sync(image_path, split_len, frame_rate, object_skip_rate, bg
     callback(final_result)
 
 
-def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate, bg_object_skip_rate, main_img_duration, which_platform="linux", export_json=False, transition='none', transition_duration=0.5, per_slide_config=None):
+def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate, bg_object_skip_rate, main_img_duration, which_platform="linux", export_json=False, transition='none', transition_duration=0.5, per_slide_config=None, aspect_ratio='original', crf=DEFAULT_CRF, watermark_path=None, watermark_position='bottom-right', watermark_opacity=0.5, watermark_scale=0.1):
     """Traite plusieurs images et génère une vidéo combinée.
     
     Args:
@@ -851,6 +1081,12 @@ def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate
         transition: Type de transition ('none', 'fade', 'wipe', 'push_left', 'push_right', 'iris')
         transition_duration: Durée de la transition en secondes
         per_slide_config: Configuration par slide (dict avec clés 'slides' et 'transitions')
+        aspect_ratio: Target aspect ratio ('original', '1:1', '16:9', '9:16')
+        crf: Video quality (0-51, lower = better quality)
+        watermark_path: Path to watermark image
+        watermark_position: Position of watermark
+        watermark_opacity: Opacity of watermark (0.0-1.0)
+        watermark_scale: Scale of watermark relative to frame width
     """
     global platform
     platform = which_platform
@@ -902,13 +1138,20 @@ def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate
             
             os.makedirs(save_path, exist_ok=True)
             
-            # Calculer la résolution
+            # Calculer la résolution basée sur le ratio d'aspect
             img_ht, img_wd = image_bgr.shape[0], image_bgr.shape[1]
-            aspect_ratio = img_wd / img_ht
-            img_ht = find_nearest_res(img_ht)
-            new_aspect_wd = int(img_ht * aspect_ratio)
-            img_wd = find_nearest_res(new_aspect_wd)
-            print(f"  Résolution cible: {img_wd}x{img_ht}")
+            
+            if aspect_ratio != 'original':
+                img_wd, img_ht = calculate_aspect_ratio_dimensions(img_wd, img_ht, aspect_ratio)
+                print(f"  Ratio d'aspect: {aspect_ratio}, Résolution cible: {img_wd}x{img_ht}")
+                # Apply padding to maintain aspect ratio
+                image_bgr = apply_aspect_ratio_padding(image_bgr, img_wd, img_ht)
+            else:
+                original_aspect_ratio = img_wd / img_ht
+                img_ht = find_nearest_res(img_ht)
+                new_aspect_wd = int(img_ht * original_aspect_ratio)
+                img_wd = find_nearest_res(new_aspect_wd)
+                print(f"  Résolution cible: {img_wd}x{img_ht}")
             
             # Obtenir la configuration pour cette slide
             slide_config = {}
@@ -946,7 +1189,9 @@ def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate
             variables = AllVariables(
                 frame_rate=frame_rate, resize_wd=img_wd, resize_ht=img_ht, split_len=split_len,
                 object_skip_rate=slide_skip_rate, bg_object_skip_rate=bg_object_skip_rate,
-                end_gray_img_duration_in_sec=slide_duration, export_json=export_json
+                end_gray_img_duration_in_sec=slide_duration, export_json=export_json,
+                watermark_path=watermark_path, watermark_position=watermark_position,
+                watermark_opacity=watermark_opacity, watermark_scale=watermark_scale
             )
             
             # Générer l'animation
@@ -960,7 +1205,7 @@ def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate
                 json_exports.append(json_export_path)
             
             # Convertir en H.264
-            ff_stat = ffmpeg_convert(source_vid=save_video_path, dest_vid=ffmpeg_video_path, platform=platform)
+            ff_stat = ffmpeg_convert(source_vid=save_video_path, dest_vid=ffmpeg_video_path, platform=platform, crf=crf)
             
             if ff_stat:
                 generated_videos.append(ffmpeg_video_path)
@@ -992,7 +1237,8 @@ def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate
             combined_video_path, 
             transition_type=transition, 
             transition_duration=transition_duration,
-            per_slide_transitions=transition_configs
+            per_slide_transitions=transition_configs,
+            crf=crf
         )
         
         if concat_success:
@@ -1019,7 +1265,7 @@ def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate
             # Échec de la concaténation, garder les vidéos individuelles
             result = {
                 "status": True,
-                "message": f"Vidéos individuelles générées (échec de la concaténation): {', '.join([os.path.basename(v) for v in generated_videos])}",
+                "message": "Vidéos individuelles générées (échec de la concaténation): " + ", ".join([os.path.basename(v) for v in generated_videos]),
                 "individual_videos": generated_videos,
                 "images_processed": len(image_paths),
                 "videos_generated": len(generated_videos)
@@ -1070,12 +1316,6 @@ def get_split_lens(image_path):
     return final_return
 
 # --- Configuration CLI (Ligne de Commande) ---
-
-DEFAULT_FRAME_RATE = 30
-DEFAULT_SPLIT_LEN = 15
-DEFAULT_OBJECT_SKIP_RATE = 8
-DEFAULT_BG_OBJECT_SKIP_RATE = 20
-DEFAULT_MAIN_IMG_DURATION = 3
 
 def main():
     """Fonction principale pour gérer les arguments CLI et lancer l'animation."""
@@ -1149,6 +1389,52 @@ def main():
         '--export-json',
         action='store_true',
         help="Exporte les données d'animation au format JSON (séquence de dessin, positions de la main, etc.)."
+    )
+    
+    parser.add_argument(
+        '--aspect-ratio',
+        type=str,
+        default='original',
+        choices=['original', '1:1', '16:9', '9:16'],
+        help="Ratio d'aspect de la vidéo (par défaut: original). Choix: original, 1:1, 16:9, 9:16."
+    )
+    
+    parser.add_argument(
+        '--quality',
+        type=int,
+        default=DEFAULT_CRF,
+        choices=range(0, 52),
+        metavar='0-51',
+        help=f"Qualité vidéo (CRF: 0-51, plus bas = meilleure qualité, par défaut: {DEFAULT_CRF}). Valeurs recommandées: 18 (visually lossless), 23 (high quality), 28 (medium)."
+    )
+    
+    parser.add_argument(
+        '--watermark',
+        type=str,
+        default=None,
+        help="Chemin vers l'image de filigrane (watermark) à appliquer sur la vidéo."
+    )
+    
+    parser.add_argument(
+        '--watermark-position',
+        type=str,
+        default='bottom-right',
+        choices=['top-left', 'top-right', 'bottom-left', 'bottom-right', 'center'],
+        help="Position du filigrane (par défaut: bottom-right)."
+    )
+    
+    parser.add_argument(
+        '--watermark-opacity',
+        type=float,
+        default=0.5,
+        help="Opacité du filigrane (0.0 à 1.0, par défaut: 0.5)."
+    )
+    
+    parser.add_argument(
+        '--watermark-scale',
+        type=float,
+        default=0.1,
+        help="Échelle du filigrane par rapport à la largeur de la vidéo (0.0 à 1.0, par défaut: 0.1)."
     )
     
     parser.add_argument(
@@ -1227,6 +1513,9 @@ def main():
         for i, img in enumerate(valid_images, 1):
             print(f"  {i}. {os.path.basename(img)}")
     print(f"Paramètres: Split={args.split_len}, FPS={args.frame_rate}, Skip={args.skip_rate}")
+    print(f"Ratio d'aspect: {args.aspect_ratio}, Qualité (CRF): {args.quality}")
+    if args.watermark:
+        print(f"Filigrane: {args.watermark} ({args.watermark_position}, opacité: {args.watermark_opacity})")
     if per_slide_config:
         print("🔧 Configuration personnalisée par slide activée")
     print("="*50)
@@ -1252,7 +1541,13 @@ def main():
             args.bg_skip_rate,
             args.duration,
             final_callback_cli,
-            export_json=args.export_json
+            export_json=args.export_json,
+            aspect_ratio=args.aspect_ratio,
+            crf=args.quality,
+            watermark_path=args.watermark,
+            watermark_position=args.watermark_position,
+            watermark_opacity=args.watermark_opacity,
+            watermark_scale=args.watermark_scale
         )
     else:
         # Plusieurs images - utiliser la nouvelle méthode
@@ -1266,7 +1561,13 @@ def main():
             export_json=args.export_json,
             transition=args.transition,
             transition_duration=args.transition_duration,
-            per_slide_config=per_slide_config
+            per_slide_config=per_slide_config,
+            aspect_ratio=args.aspect_ratio,
+            crf=args.quality,
+            watermark_path=args.watermark,
+            watermark_position=args.watermark_position,
+            watermark_opacity=args.watermark_opacity,
+            watermark_scale=args.watermark_scale
         )
         
         print("\n" + "="*60)
