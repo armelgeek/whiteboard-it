@@ -66,6 +66,10 @@ def render_text_to_image(text_config, target_width, target_height):
     align = text_config.get('align', 'left')
     position = text_config.get('position', None)
     
+    # Convert color to tuple if it's a list
+    if isinstance(color, list):
+        color = tuple(color)
+    
     # Convert hex color to RGB if needed
     if isinstance(color, str):
         if color.startswith('#'):
@@ -1865,7 +1869,14 @@ def compose_layers(layers_config, target_width, target_height, base_path="."):
             
             z_idx = layer.get('z_index', 0)
             eraser_str = ", eraser:on" if intelligent_eraser else ""
-            print(f"    ✓ Couche appliquée: {os.path.basename(image_path)} " + 
+            
+            # Get layer description for logging
+            if layer_type == 'text':
+                layer_desc = f"text:{text_config.get('text', '')[:30]}..."
+            else:
+                layer_desc = os.path.basename(image_path)
+            
+            print(f"    ✓ Couche appliquée: {layer_desc} " + 
                   f"(z:{z_idx}, pos:{x},{y}, scale:{scale:.2f}, opacity:{opacity:.2f}{eraser_str})")
         
         except Exception as e:
