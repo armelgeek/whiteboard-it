@@ -1577,6 +1577,7 @@ def compose_layers(layers_config, target_width, target_height, base_path="."):
             - z_index: ordre de superposition
             - scale: échelle de l'image (optionnel, défaut 1.0)
             - opacity: opacité de la couche (optionnel, défaut 1.0)
+            - intelligent_eraser: si True, efface la zone de collision avant de dessiner (optionnel, défaut False)
         target_width: largeur du canvas cible
         target_height: hauteur du canvas cible
         base_path: chemin de base pour résoudre les chemins relatifs
@@ -1647,7 +1648,18 @@ def compose_layers(layers_config, target_width, target_height, base_path="."):
             
             # Copier la région de la couche sur le canvas avec opacité
             layer_region = layer_img[ly1:ly2, lx1:lx2]
-            canvas_region = canvas[y1:y2, x1:x2]
+            canvas_region = canvas[y1:y2, x1:x2].copy()
+            
+            # Intelligent eraser: efface la zone de collision avant de dessiner
+            intelligent_eraser = layer.get('intelligent_eraser', False)
+            if intelligent_eraser:
+                # Créer un masque de contenu (pixels non-blancs) de la nouvelle couche
+                # Un pixel est considéré comme du contenu s'il est significativement différent du blanc
+                threshold = 250
+                layer_content_mask = np.any(layer_region < threshold, axis=2)
+                
+                # Effacer (mettre en blanc) les zones du canvas où la nouvelle couche a du contenu
+                canvas_region[layer_content_mask] = [255, 255, 255]
             
             if opacity < 1.0:
                 # Mélanger avec opacité
@@ -1655,12 +1667,17 @@ def compose_layers(layers_config, target_width, target_height, base_path="."):
                     canvas_region, 1 - opacity, layer_region, opacity, 0
                 )
             else:
-                # Copie directe
-                canvas[y1:y2, x1:x2] = layer_region
+                # Pour opacité 1.0, copier seulement les pixels non-blancs de la couche
+                # Cela préserve le fond blanc et l'effet d'effacement
+                threshold = 250
+                layer_content_mask = np.any(layer_region < threshold, axis=2)
+                canvas_region[layer_content_mask] = layer_region[layer_content_mask]
+                canvas[y1:y2, x1:x2] = canvas_region
             
             z_idx = layer.get('z_index', 0)
+            eraser_str = ", eraser:on" if intelligent_eraser else ""
             print(f"    ✓ Couche appliquée: {os.path.basename(image_path)} " + 
-                  f"(z:{z_idx}, pos:{x},{y}, scale:{scale:.2f}, opacity:{opacity:.2f})")
+                  f"(z:{z_idx}, pos:{x},{y}, scale:{scale:.2f}, opacity:{opacity:.2f}{eraser_str})")
         
         except Exception as e:
             print(f"    ❌ Erreur lors de l'application de la couche: {e}")

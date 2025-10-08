@@ -1,0 +1,28 @@
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 5,
+      "layers": [
+        {
+          "image_path": "demo/1.jpg",
+          "position": {"x": 100, "y": 100},
+          "z_index": 1,
+          "skip_rate": 5,
+          "scale": 0.6,
+          "mode": "draw"
+        },
+        {
+          "image_path": "demo/2.jpg",
+          "position": {"x": 250, "y": 250},
+          "z_index": 2,
+          "skip_rate": 10,
+          "scale": 0.5,
+          "opacity": 0.8,
+          "intelligent_eraser": true,
+          "mode": "draw"
+        }
+      ]
+    }
+  ]
+}

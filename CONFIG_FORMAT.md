@@ -142,6 +142,7 @@ Une slide peut contenir plusieurs images superposées (layers), chacune position
 | `scale` | float | Échelle de l'image (1.0 = taille originale) | 1.0 |
 | `opacity` | float | Opacité de la couche (0.0 à 1.0) | 1.0 |
 | `mode` | string | Mode de dessin: `draw` (main), `eraser` (gomme), `static` (sans animation) | `draw` |
+| `intelligent_eraser` | boolean | Efface le contenu superposé avant de dessiner (effet gomme naturel) | `false` |
 | `entrance_animation` | object | Animation d'entrée (voir détails ci-dessous) | null |
 | `exit_animation` | object | Animation de sortie (voir détails ci-dessous) | null |
 | `morph` | object | Morphing depuis la couche précédente (voir détails ci-dessous) | null |
@@ -151,6 +152,34 @@ Une slide peut contenir plusieurs images superposées (layers), chacune position
 - **`draw`** (par défaut): Dessine avec l'animation de la main
 - **`eraser`**: Dessine avec l'animation d'une gomme (pour effet d'effacement)
 - **`static`**: Affiche l'image sans animation de dessin (apparaît directement)
+
+##### Gomme intelligente (`intelligent_eraser`)
+
+Lorsque `intelligent_eraser: true`, la couche efface automatiquement le contenu superposé avant d'être dessinée, créant un effet naturel où le nouveau contenu remplace l'ancien.
+
+**Fonctionnement:**
+1. Détecte les pixels non-blancs (contenu réel) de la nouvelle couche
+2. Efface ces zones sur le canvas existant
+3. Dessine ensuite la nouvelle couche normalement
+
+**Cas d'usage:**
+- Créer des animations où de nouveaux éléments remplacent les anciens
+- Gérer proprement les superpositions de couches
+- Simuler un effet naturel de gomme lors de l'ajout de contenu
+
+**Exemple:**
+```json
+{
+  "image_path": "layer2.png",
+  "position": {"x": 100, "y": 100},
+  "z_index": 2,
+  "intelligent_eraser": true
+}
+```
+
+**Note:** Cette fonctionnalité est différente du `mode: "eraser"`. L'intelligent_eraser efface avant de dessiner, tandis que le mode eraser anime une gomme qui efface progressivement.
+
+Voir [INTELLIGENT_ERASER.md](INTELLIGENT_ERASER.md) pour plus de détails.
 
 ##### Animations d'entrée et de sortie
 
