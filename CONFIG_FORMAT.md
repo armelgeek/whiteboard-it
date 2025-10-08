@@ -141,6 +141,49 @@ Une slide peut contenir plusieurs images superposées (layers), chacune position
 | `skip_rate` | int | Vitesse de dessin spécifique à cette couche | Hérite de la slide |
 | `scale` | float | Échelle de l'image (1.0 = taille originale) | 1.0 |
 | `opacity` | float | Opacité de la couche (0.0 à 1.0) | 1.0 |
+| `type` | string | Type de couche: `image`, `text` | `image` |
+| `camera` | object | Configuration de la caméra (zoom, position) | null |
+| `animation` | object | Effets d'animation post-dessin (zoom_in, zoom_out) | null |
+
+##### Configuration de la caméra (camera)
+
+La caméra permet de zoomer et de se concentrer sur des zones spécifiques:
+
+| Propriété | Type | Description | Par défaut |
+|-----------|------|-------------|------------|
+| `zoom` | float | Niveau de zoom (1.0 = normal, 2.0 = zoom x2) | 1.0 |
+| `position` | object | Point focal avec `x` et `y` (0.0-1.0, 0.5 = centre) | `{"x": 0.5, "y": 0.5}` |
+
+**Exemple:**
+```json
+"camera": {
+  "zoom": 1.5,
+  "position": {"x": 0.5, "y": 0.3}
+}
+```
+
+##### Effets d'animation (animation)
+
+Effets appliqués après le dessin de la couche:
+
+| Propriété | Type | Description | Par défaut |
+|-----------|------|-------------|------------|
+| `type` | string | Type d'effet: `none`, `zoom_in`, `zoom_out` | `none` |
+| `duration` | float | Durée de l'effet en secondes | 1.0 |
+| `start_zoom` | float | Zoom de départ | 1.0 |
+| `end_zoom` | float | Zoom final | 1.5 |
+| `focus_position` | object | Point focal pendant le zoom avec `x` et `y` | `{"x": 0.5, "y": 0.5}` |
+
+**Exemple zoom-in:**
+```json
+"animation": {
+  "type": "zoom_in",
+  "duration": 1.5,
+  "start_zoom": 1.0,
+  "end_zoom": 2.0,
+  "focus_position": {"x": 0.5, "y": 0.5}
+}
+```
 
 #### Exemple avec couches
 
@@ -432,6 +475,44 @@ Dans cet exemple :
 - Une transition fade relie les deux slides
 
 **Important:** Quand vous utilisez des couches (layers), vous devez quand même fournir au moins une image en ligne de commande pour définir le nombre de slides, mais cette image sera ignorée pour les slides avec configuration de couches.
+
+### Cas 6 : Contrôles de caméra et animations
+
+```json
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 8,
+      "layers": [
+        {
+          "image_path": "examples/diagram.png",
+          "position": {"x": 0, "y": 0},
+          "z_index": 1,
+          "skip_rate": 10,
+          "camera": {
+            "zoom": 1.5,
+            "position": {"x": 0.5, "y": 0.5}
+          },
+          "animation": {
+            "type": "zoom_in",
+            "duration": 1.5,
+            "start_zoom": 1.5,
+            "end_zoom": 2.0,
+            "focus_position": {"x": 0.7, "y": 0.4}
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+Dans cet exemple :
+- La couche est dessinée avec un zoom de caméra de 1.5x centré
+- Après le dessin, un effet de zoom progressif est appliqué
+- Le zoom passe de 1.5x à 2.0x sur 1.5 secondes
+- Le focus se déplace vers la position (0.7, 0.4) pendant le zoom
 
 ## Notes importantes
 

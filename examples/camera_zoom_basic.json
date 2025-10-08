@@ -1,0 +1,22 @@
+{
+  "_comment": "Example 1: Simple camera zoom on a single layer",
+  "_description": "This example demonstrates basic camera zoom functionality",
+  "slides": [
+    {
+      "index": 0,
+      "duration": 6,
+      "layers": [
+        {
+          "image_path": "demo/1.jpg",
+          "position": {"x": 0, "y": 0},
+          "z_index": 1,
+          "skip_rate": 10,
+          "camera": {
+            "zoom": 1.5,
+            "position": {"x": 0.5, "y": 0.5}
+          }
+        }
+      ]
+    }
+  ]
+}
