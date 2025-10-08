@@ -490,6 +490,81 @@ def ffmpeg_convert(source_vid, dest_vid, platform="linux"):
     return ff_stat
 
 
+def concatenate_videos(video_paths, output_path):
+    """Concatène plusieurs vidéos en une seule vidéo finale."""
+    try:
+        import av
+        
+        if not video_paths:
+            raise ValueError("Aucune vidéo à concaténer")
+        
+        if len(video_paths) == 1:
+            # Si une seule vidéo, copier simplement
+            shutil.copy2(video_paths[0], output_path)
+            print(f"✅ Vidéo unique copiée: {output_path}")
+            return True
+        
+        print(f"🔗 Concaténation de {len(video_paths)} vidéos...")
+        
+        # Ouvrir le premier fichier pour obtenir les paramètres
+        first_container = av.open(video_paths[0], mode="r")
+        first_stream = first_container.streams.video[0]
+        width = first_stream.codec_context.width
+        height = first_stream.codec_context.height
+        fps = first_stream.average_rate
+        first_container.close()
+        
+        # Créer le conteneur de sortie
+        output_container = av.open(output_path, mode="w")
+        out_stream = output_container.add_stream("h264", rate=fps)
+        out_stream.width = width
+        out_stream.height = height
+        out_stream.pix_fmt = "yuv420p"
+        out_stream.options = {"crf": "20"}
+        
+        # Concaténer toutes les vidéos
+        for i, video_path in enumerate(video_paths):
+            print(f"  Ajout de la vidéo {i+1}/{len(video_paths)}: {os.path.basename(video_path)}")
+            input_container = av.open(video_path, mode="r")
+            
+            for frame in input_container.decode(video=0):
+                packet = out_stream.encode(frame)
+                if packet:
+                    output_container.mux(packet)
+            
+            input_container.close()
+        
+        # Finaliser l'encodage
+        packet = out_stream.encode()
+        if packet:
+            output_container.mux(packet)
+        
+        output_container.close()
+        
+        # Vérifier que le fichier a bien été créé
+        if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+            print(f"✅ Concaténation réussie: {output_path}")
+            return True
+        else:
+            print(f"❌ Le fichier de sortie n'a pas été créé correctement")
+            return False
+        
+    except ImportError:
+        print("❌ ERREUR: Le module 'av' (PyAV) est requis pour la concaténation de vidéos.")
+        print("   Installez-le avec: pip install av")
+        return False
+        
+    except Exception as e:
+        # Vérifier si le fichier existe malgré l'erreur (PyAV peut rapporter des erreurs même en cas de succès)
+        if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+            print(f"✅ Concaténation réussie: {output_path}")
+            print(f"   (Note: PyAV a rapporté une erreur mais le fichier est valide)")
+            return True
+        else:
+            print(f"❌ Erreur lors de la concaténation: {e}")
+            return False
+
+
 def initiate_sketch_sync(image_path, split_len, frame_rate, object_skip_rate, bg_object_skip_rate, main_img_duration, callback, save_path=save_path, which_platform="linux", export_json=False):
     """Version synchrone de initiate_sketch pour l'exécution en ligne de commande (sans Kivy Clock)."""
     global platform
@@ -558,6 +633,159 @@ def initiate_sketch_sync(image_path, split_len, frame_rate, object_skip_rate, bg
     callback(final_result)
 
 
+def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate, bg_object_skip_rate, main_img_duration, which_platform="linux", export_json=False):
+    """Traite plusieurs images et génère une vidéo combinée."""
+    global platform
+    platform = which_platform
+    
+    if not image_paths:
+        return {"status": False, "message": "Aucune image fournie"}
+    
+    print("\n" + "="*60)
+    print(f"🎬 TRAITEMENT DE {len(image_paths)} IMAGE(S)")
+    print("="*60)
+    
+    generated_videos = []
+    json_exports = []
+    
+    # Créer un horodatage unique pour cette série
+    now = datetime.datetime.now()
+    current_time = str(now.strftime("%H%M%S"))
+    current_date = str(now.strftime("%Y%m%d"))
+    series_id = f"{current_date}_{current_time}"
+    
+    # Traiter chaque image
+    for idx, image_path in enumerate(image_paths, 1):
+        print(f"\n📷 Image {idx}/{len(image_paths)}: {os.path.basename(image_path)}")
+        print("-" * 60)
+        
+        if not os.path.exists(image_path):
+            print(f"⚠️ Image ignorée (introuvable): {image_path}")
+            continue
+        
+        try:
+            # Lire l'image pour vérifier
+            image_bgr = cv2.imread(image_path)
+            if image_bgr is None:
+                print(f"⚠️ Image ignorée (illisible): {image_path}")
+                continue
+            
+            mask_path = None
+            
+            # Noms de fichiers pour cette image
+            video_save_name = f"vid_{series_id}_img{idx}.mp4"
+            save_video_path = os.path.join(save_path, video_save_name)
+            ffmpeg_file_name = f"vid_{series_id}_img{idx}_h264.mp4"
+            ffmpeg_video_path = os.path.join(save_path, ffmpeg_file_name)
+            json_file_name = f"animation_{series_id}_img{idx}.json"
+            json_export_path = os.path.join(save_path, json_file_name)
+            
+            os.makedirs(save_path, exist_ok=True)
+            
+            # Calculer la résolution
+            img_ht, img_wd = image_bgr.shape[0], image_bgr.shape[1]
+            aspect_ratio = img_wd / img_ht
+            img_ht = find_nearest_res(img_ht)
+            new_aspect_wd = int(img_ht * aspect_ratio)
+            img_wd = find_nearest_res(new_aspect_wd)
+            print(f"  Résolution cible: {img_wd}x{img_ht}")
+            
+            # Créer les variables
+            variables = AllVariables(
+                frame_rate=frame_rate, resize_wd=img_wd, resize_ht=img_ht, split_len=split_len,
+                object_skip_rate=object_skip_rate, bg_object_skip_rate=bg_object_skip_rate,
+                end_gray_img_duration_in_sec=main_img_duration, export_json=export_json
+            )
+            
+            # Générer l'animation
+            draw_whiteboard_animations(
+                image_bgr, mask_path, hand_path, hand_mask_path, save_video_path, variables
+            )
+            
+            # Export JSON si demandé
+            if export_json:
+                export_animation_json(variables, json_export_path)
+                json_exports.append(json_export_path)
+            
+            # Convertir en H.264
+            ff_stat = ffmpeg_convert(source_vid=save_video_path, dest_vid=ffmpeg_video_path, platform=platform)
+            
+            if ff_stat:
+                generated_videos.append(ffmpeg_video_path)
+                os.unlink(save_video_path)
+                print(f"  ✅ Vidéo générée: {os.path.basename(ffmpeg_video_path)}")
+            else:
+                generated_videos.append(save_video_path)
+                print(f"  ✅ Vidéo générée (sans conversion): {os.path.basename(save_video_path)}")
+        
+        except Exception as e:
+            print(f"  ❌ Erreur lors du traitement de l'image {idx}: {e}")
+            continue
+    
+    # Vérifier qu'au moins une vidéo a été générée
+    if not generated_videos:
+        return {"status": False, "message": "Aucune vidéo n'a pu être générée"}
+    
+    # Concaténer les vidéos si plusieurs
+    if len(generated_videos) > 1:
+        print("\n" + "="*60)
+        print("🔗 COMBINAISON DES VIDÉOS")
+        print("="*60)
+        
+        combined_video_name = f"vid_{series_id}_combined.mp4"
+        combined_video_path = os.path.join(save_path, combined_video_name)
+        
+        concat_success = concatenate_videos(generated_videos, combined_video_path)
+        
+        if concat_success:
+            # Supprimer les vidéos individuelles après concaténation réussie
+            for video_path in generated_videos:
+                try:
+                    os.unlink(video_path)
+                    print(f"  🗑️ Vidéo intermédiaire supprimée: {os.path.basename(video_path)}")
+                except Exception as e:
+                    print(f"  ⚠️ Impossible de supprimer {os.path.basename(video_path)}: {e}")
+            
+            result = {
+                "status": True,
+                "message": combined_video_path,
+                "images_processed": len(image_paths),
+                "videos_generated": len(generated_videos)
+            }
+            
+            if json_exports:
+                result["json_paths"] = json_exports
+            
+            return result
+        else:
+            # Échec de la concaténation, garder les vidéos individuelles
+            result = {
+                "status": True,
+                "message": f"Vidéos individuelles générées (échec de la concaténation): {', '.join([os.path.basename(v) for v in generated_videos])}",
+                "individual_videos": generated_videos,
+                "images_processed": len(image_paths),
+                "videos_generated": len(generated_videos)
+            }
+            
+            if json_exports:
+                result["json_paths"] = json_exports
+            
+            return result
+    else:
+        # Une seule vidéo générée
+        result = {
+            "status": True,
+            "message": generated_videos[0],
+            "images_processed": 1,
+            "videos_generated": 1
+        }
+        
+        if json_exports:
+            result["json_path"] = json_exports[0]
+        
+        return result
+
+
 def get_split_lens(image_path):
     """ Obtient la résolution de l'image (redimensionnée) et les diviseurs communs (split_lens). """
     final_return = {"image_res": "None", "split_lens": []}
@@ -594,16 +822,16 @@ DEFAULT_MAIN_IMG_DURATION = 3
 def main():
     """Fonction principale pour gérer les arguments CLI et lancer l'animation."""
     parser = argparse.ArgumentParser(
-        description="Crée une vidéo d'animation style tableau blanc à partir d'une image. "
+        description="Crée une vidéo d'animation style tableau blanc à partir d'une ou plusieurs images. "
         "Utilisez aussi --get-split-lens [image_path] pour voir les valeurs 'split_len' recommandées."
     )
     
     parser.add_argument(
-        'image_path', 
+        'image_paths', 
         type=str, 
-        nargs='?', 
+        nargs='*', 
         default=None,
-        help="Le chemin du fichier image à animer (ex: /home/user/dessin.png)"
+        help="Le(s) chemin(s) du/des fichier(s) image(s) à animer (ex: image1.png image2.png image3.png)"
     )
 
     parser.add_argument(
@@ -657,11 +885,11 @@ def main():
 
     # --- Mode de vérification des 'split-lens' ---
     if args.get_split_lens:
-        path_to_check = args.image_path
-        if not path_to_check:
+        if not args.image_paths or len(args.image_paths) == 0:
             print("Erreur: Vous devez spécifier le chemin de l'image après --get-split-lens.")
             return
 
+        path_to_check = args.image_paths[0]
         if not os.path.exists(path_to_check):
              print(f"Erreur: Le chemin d'image spécifié est introuvable: {path_to_check}")
              return
@@ -678,41 +906,92 @@ def main():
         return
 
     # --- Mode de génération vidéo ---
-    if not args.image_path:
+    if not args.image_paths or len(args.image_paths) == 0:
         parser.print_help()
-        print("\n❌ ERREUR: Le chemin de l'image est manquant.")
+        print("\n❌ ERREUR: Au moins un chemin d'image est requis.")
         return
 
-    if not os.path.exists(args.image_path):
-        print(f"❌ Erreur: Le chemin d'image est introuvable: {args.image_path}")
+    # Vérifier que les images existent
+    valid_images = []
+    for img_path in args.image_paths:
+        if os.path.exists(img_path):
+            valid_images.append(img_path)
+        else:
+            print(f"⚠️ Avertissement: Image ignorée (introuvable): {img_path}")
+    
+    if not valid_images:
+        print("❌ Erreur: Aucune image valide fournie.")
         return
 
     print("\n" + "="*50)
     print("🎬 Lancement de l'animation Whiteboard")
-    print(f"Image source: {args.image_path}")
+    if len(valid_images) == 1:
+        print(f"Image source: {valid_images[0]}")
+    else:
+        print(f"Images sources: {len(valid_images)} image(s)")
+        for i, img in enumerate(valid_images, 1):
+            print(f"  {i}. {os.path.basename(img)}")
     print(f"Paramètres: Split={args.split_len}, FPS={args.frame_rate}, Skip={args.skip_rate}")
     print("="*50)
 
-    def final_callback_cli(result):
-        """Fonction de rappel appelée à la fin de la génération."""
-        if result["status"]:
-            print(f"\n✅ SUCCÈS! Vidéo enregistrée sous: {result['message']}")
-            if "json_path" in result:
-                print(f"✅ Données d'animation exportées: {result['json_path']}")
-        else:
-            print(f"\n❌ ÉCHEC de la génération vidéo. Message: {result['message']}")
+    # Traitement unique ou multiple
+    if len(valid_images) == 1:
+        # Une seule image - utiliser l'ancienne méthode
+        def final_callback_cli(result):
+            """Fonction de rappel appelée à la fin de la génération."""
+            if result["status"]:
+                print(f"\n✅ SUCCÈS! Vidéo enregistrée sous: {result['message']}")
+                if "json_path" in result:
+                    print(f"✅ Données d'animation exportées: {result['json_path']}")
+            else:
+                print(f"\n❌ ÉCHEC de la génération vidéo. Message: {result['message']}")
 
-    # Appel de la fonction synchrone pour la CLI
-    initiate_sketch_sync(
-        args.image_path,
-        args.split_len,
-        args.frame_rate,
-        args.skip_rate,
-        args.bg_skip_rate,
-        args.duration,
-        final_callback_cli,
-        export_json=args.export_json
-    )
+        # Appel de la fonction synchrone pour la CLI
+        initiate_sketch_sync(
+            valid_images[0],
+            args.split_len,
+            args.frame_rate,
+            args.skip_rate,
+            args.bg_skip_rate,
+            args.duration,
+            final_callback_cli,
+            export_json=args.export_json
+        )
+    else:
+        # Plusieurs images - utiliser la nouvelle méthode
+        result = process_multiple_images(
+            valid_images,
+            args.split_len,
+            args.frame_rate,
+            args.skip_rate,
+            args.bg_skip_rate,
+            args.duration,
+            export_json=args.export_json
+        )
+        
+        print("\n" + "="*60)
+        if result["status"]:
+            print("✅ SUCCÈS!")
+            print(f"📊 Images traitées: {result.get('images_processed', 0)}")
+            print(f"🎬 Vidéos générées: {result.get('videos_generated', 0)}")
+            
+            if "individual_videos" in result:
+                print("\n📹 Vidéos individuelles (la concaténation a échoué):")
+                for video in result["individual_videos"]:
+                    print(f"  • {video}")
+            else:
+                print(f"\n🎥 Vidéo finale: {result['message']}")
+            
+            if "json_paths" in result:
+                print(f"\n📄 Données d'animation exportées ({len(result['json_paths'])} fichier(s)):")
+                for json_path in result["json_paths"]:
+                    print(f"  • {json_path}")
+            elif "json_path" in result:
+                print(f"\n📄 Données d'animation exportées: {result['json_path']}")
+        else:
+            print("❌ ÉCHEC!")
+            print(f"Message: {result['message']}")
+        print("="*60 + "\n")
 
 if __name__ == '__main__':
     main()
