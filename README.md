@@ -5,8 +5,9 @@ Application de création d'animations de type "dessin sur tableau blanc" (whiteb
 ## Fonctionnalités
 
 - ✅ Génération de vidéos d'animation de dessin à partir d'images
+- ✅ **Support de plusieurs images avec combinaison automatique** (NOUVEAU)
 - ✅ Personnalisation des paramètres (FPS, vitesse, grille)
-- ✅ Export JSON des données d'animation (NOUVEAU)
+- ✅ Export JSON des données d'animation
 - ✅ Support de plusieurs formats d'image
 - ✅ Animation avec main réaliste
 
@@ -29,23 +30,34 @@ pip install av
 ### Génération de vidéo
 
 ```bash
-# Génération simple
+# Génération simple (une image)
 python whiteboard_animator.py image.png
 
 # Avec paramètres personnalisés
 python whiteboard_animator.py image.png --split-len 15 --frame-rate 30 --skip-rate 8
+
+# Plusieurs images (génère une vidéo combinée)
+python whiteboard_animator.py image1.png image2.png image3.png
+
+# Plusieurs images avec paramètres personnalisés
+python whiteboard_animator.py image1.png image2.png image3.png --split-len 15 --frame-rate 30 --skip-rate 8
 ```
+
+**Note:** Lorsque plusieurs images sont fournies, le script génère une vidéo pour chaque image puis les combine automatiquement en une seule vidéo finale. Chaque image est dessinée dans l'ordre.
 
 ### Export des données d'animation (JSON)
 
 ```bash
-# Générer vidéo + données JSON
+# Générer vidéo + données JSON (une image)
 python whiteboard_animator.py image.png --export-json
+
+# Plusieurs images avec export JSON (génère un fichier JSON par image)
+python whiteboard_animator.py image1.png image2.png image3.png --export-json
 ```
 
 Cela génère :
-- Une vidéo MP4 de l'animation
-- Un fichier JSON contenant les données d'animation (séquence de dessin, positions de la main, etc.)
+- Une vidéo MP4 de l'animation (combinée si plusieurs images)
+- Un fichier JSON par image contenant les données d'animation (séquence de dessin, positions de la main, etc.)
 
 ### Vérifier les valeurs recommandées
 
