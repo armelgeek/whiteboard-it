@@ -659,24 +659,38 @@ def concatenate_videos(video_paths, output_path, transition_type='none', transit
                     # Convertir numpy array en PyAV frame
                     av_frame = av.VideoFrame.from_ndarray(trans_frame, format='bgr24')
                     av_frame.pts = None
-                    packet = out_stream.encode(av_frame)
-                    if packet:
+                    # encode() retourne une liste de packets
+                    packets = out_stream.encode(av_frame)
+                    for packet in packets:
                         output_container.mux(packet)
             
             # Ajouter toutes les frames de cette vidéo
+            # Pour assurer la compatibilité avec les frames de transition,
+            # convertir les frames décodées en numpy puis en VideoFrame
             for frame in frames_list:
-                packet = out_stream.encode(frame)
-                if packet:
+                # Convertir en numpy puis recréer le frame
+                frame_np = frame.to_ndarray(format='bgr24')
+                av_frame = av.VideoFrame.from_ndarray(frame_np, format='bgr24')
+                # encode() retourne une liste de packets
+                packets = out_stream.encode(av_frame)
+                for packet in packets:
                     output_container.mux(packet)
             
             # Sauvegarder la dernière frame pour la transition suivante
             if len(frames_list) > 0:
                 last_frame = frames_list[-1]
         
-        # Finaliser l'encodage
-        packet = out_stream.encode()
-        if packet:
-            output_container.mux(packet)
+        # Finaliser l'encodage - appeler encode() en boucle jusqu'à ce qu'il n'y ait plus de packets
+        try:
+            while True:
+                packets = out_stream.encode()
+                if not packets:
+                    break
+                for packet in packets:
+                    output_container.mux(packet)
+        except Exception:
+            # L'encoder peut signaler EOF lors du flush, c'est normal
+            pass
         
         output_container.close()
         
