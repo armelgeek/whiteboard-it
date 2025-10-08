@@ -78,8 +78,53 @@ python whiteboard_animator.py image.png --get-split-lens
 - `--duration` : Durée de l'image finale en secondes (par défaut: 3)
 - `--transition` : Type de transition entre les slides - choix: none, fade, wipe, push_left, push_right, iris (par défaut: none)
 - `--transition-duration` : Durée de la transition en secondes (par défaut: 0.5)
+- `--config` : Fichier JSON pour une configuration personnalisée par slide (durée, vitesse, transitions, pauses, etc.)
 - `--export-json` : Exporter les données d'animation au format JSON
 - `--get-split-lens` : Afficher les valeurs recommandées pour split-len
+
+## Configuration personnalisée par slide
+
+Utilisez le paramètre `--config` avec un fichier JSON pour personnaliser chaque slide individuellement :
+
+```bash
+python whiteboard_animator.py slide1.png slide2.png slide3.png --config config.json
+```
+
+Le fichier de configuration permet de définir :
+- **Durée d'affichage** différente pour chaque slide
+- **Vitesse de dessin** (skip-rate) différente pour chaque slide
+- **Type de transition** spécifique entre chaque slide
+- **Durée de transition** personnalisée entre chaque slide
+- **Pause avant transition** pour ajouter un temps d'attente entre les slides
+
+### Exemple de fichier de configuration
+
+```json
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 2,
+      "skip_rate": 10
+    },
+    {
+      "index": 1,
+      "duration": 3,
+      "skip_rate": 15
+    }
+  ],
+  "transitions": [
+    {
+      "after_slide": 0,
+      "type": "fade",
+      "duration": 0.8,
+      "pause_before": 1.0
+    }
+  ]
+}
+```
+
+Voir [CONFIG_FORMAT.md](CONFIG_FORMAT.md) pour la documentation complète du format de configuration.
 
 ## Format d'export JSON
 
@@ -128,6 +173,68 @@ python whiteboard_animator.py img1.png img2.png --skip-rate 15 --duration 2
 
 # Avec transition en fondu entre les slides
 python whiteboard_animator.py slide1.png slide2.png slide3.png --transition fade
+
+# Avec configuration personnalisée par slide
+python whiteboard_animator.py slide1.png slide2.png slide3.png --config my_config.json
+
+# Configuration personnalisée + paramètres globaux
+python whiteboard_animator.py slide1.png slide2.png slide3.png \
+  --config my_config.json \
+  --frame-rate 30 \
+  --export-json
+```
+
+### Configuration personnalisée avancée
+
+Créez un fichier `advanced_config.json` :
+
+```json
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 2,
+      "skip_rate": 8
+    },
+    {
+      "index": 1,
+      "duration": 4,
+      "skip_rate": 20
+    },
+    {
+      "index": 2,
+      "duration": 3,
+      "skip_rate": 12
+    }
+  ],
+  "transitions": [
+    {
+      "after_slide": 0,
+      "type": "fade",
+      "duration": 1.0,
+      "pause_before": 2.0
+    },
+    {
+      "after_slide": 1,
+      "type": "iris",
+      "duration": 1.5,
+      "pause_before": 1.5
+    }
+  ]
+}
+```
+
+Puis utilisez-le :
+
+```bash
+python whiteboard_animator.py slide1.png slide2.png slide3.png --config advanced_config.json
+```
+
+Ce fichier de configuration :
+- Définit des durées et vitesses différentes pour chaque slide
+- Ajoute une pause de 2 secondes après la première slide avant la transition fade
+- Ajoute une pause de 1.5 secondes après la deuxième slide avant la transition iris
+
 
 # Avec transition de type "push left" et durée personnalisée
 python whiteboard_animator.py slide1.png slide2.png --transition push_left --transition-duration 1.0
