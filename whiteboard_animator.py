@@ -506,13 +506,42 @@ def draw_layered_whiteboard_animations(
                 skip_rate=layer_skip_rate,
             )
             
-            # Mettre à jour le canvas avec la couche dessinée (appliquer l'opacité)
+            # Debug: Check if layer was drawn
+            layer_drawn_pixels = np.sum(np.any(layer_vars.drawn_frame < 250, axis=2))
+            prev_drawn_pixels = np.sum(np.any(variables.drawn_frame < 250, axis=2))
+            print(f"    Pixels dessinés: couche={layer_drawn_pixels}, précédent={prev_drawn_pixels}")
+            
+            # Mettre à jour le canvas avec la couche dessinée
+            # The issue: layer_vars.drawn_frame started from variables.drawn_frame,
+            # so it contains both old and new content. We need to extract only the new content.
+            # 
+            # We create a mask for pixels that belong to this layer (non-white in layer_full)
+            # Then blend only those pixels with opacity
+            
+            # Create mask for this layer's content (from the original layer image position)
+            layer_mask = np.any(layer_full < 250, axis=2).astype(np.float32)
+            layer_mask_3d = np.stack([layer_mask] * 3, axis=2)
+            
             if opacity < 1.0:
-                variables.drawn_frame = cv2.addWeighted(
-                    variables.drawn_frame, 1 - opacity, layer_vars.drawn_frame, opacity, 0
-                )
+                # Blend only the layer's pixels
+                # Where layer has content: blend old background with new layer content
+                # Where layer has no content: keep the old frame unchanged
+                layer_content = layer_vars.drawn_frame * layer_mask_3d
+                old_background = variables.drawn_frame * layer_mask_3d
+                blended_layer = cv2.addWeighted(old_background, 1 - opacity, layer_content, opacity, 0)
+                
+                # Combine: blended layer where mask=1, old frame where mask=0
+                variables.drawn_frame = (layer_mask_3d * blended_layer + 
+                                        (1 - layer_mask_3d) * variables.drawn_frame).astype(np.uint8)
             else:
-                variables.drawn_frame = layer_vars.drawn_frame.copy()
+                # No opacity blending, just overlay the layer where it has content
+                variables.drawn_frame = np.where(layer_mask_3d > 0, 
+                                                layer_vars.drawn_frame, 
+                                                variables.drawn_frame).astype(np.uint8)
+            
+            after_drawn_pixels = np.sum(np.any(variables.drawn_frame < 250, axis=2))
+            print(f"    Après mélange: {after_drawn_pixels} pixels dessinés")
+            print(f"    Frames écrites pour cette couche: {layer_vars.video_object.get(cv2.CAP_PROP_FRAME_COUNT) if hasattr(layer_vars.video_object, 'get') else 'N/A'}")
             
             # Enregistrer les infos de la couche pour l'export JSON
             if variables.export_json:
