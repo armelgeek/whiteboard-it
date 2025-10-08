@@ -4,7 +4,106 @@ Ce répertoire contient des exemples de fichiers de configuration et de scripts 
 
 ## Fichiers de configuration JSON
 
-### Contrôles de caméra et animations
+### 1. Concepts de base
+
+#### basic_drawing.json
+Exemple simple d'animation de dessin whiteboard avec une seule image.
+```bash
+python whiteboard_animator.py demo/1.jpg --config examples/basic_drawing.json --split-len 30
+```
+**Fonctionnalités démontrées:**
+- Animation de dessin de base avec la main
+- Configuration minimale (durée et vitesse de dessin)
+- Idéal pour démarrer
+
+#### multi_slide_transitions.json
+Plusieurs slides avec différentes transitions entre elles.
+```bash
+python whiteboard_animator.py demo/1.jpg demo/2.jpg demo/3.png --config examples/multi_slide_transitions.json --split-len 30
+```
+**Fonctionnalités démontrées:**
+- Trois slides avec des vitesses de dessin différentes
+- Transition "fade" entre la slide 1 et 2
+- Transition "iris" entre la slide 2 et 3
+- Configuration personnalisée par slide
+
+#### all_transitions.json
+Démonstration de tous les types de transitions disponibles.
+```bash
+python whiteboard_animator.py demo/1.jpg demo/2.jpg demo/3.png demo/1.jpg demo/2.jpg demo/3.png --config examples/all_transitions.json --split-len 30
+```
+**Fonctionnalités démontrées:**
+- Transition **fade** : Fondu enchaîné progressif
+- Transition **wipe** : Balayage de gauche à droite
+- Transition **push_left** : Pousse la slide vers la gauche
+- Transition **push_right** : Pousse la slide vers la droite
+- Transition **iris** : Cercle qui s'agrandit depuis le centre
+- Six slides avec toutes les transitions
+
+#### per_slide_config.json
+Configuration avancée par slide avec durées et transitions personnalisées.
+```bash
+python whiteboard_animator.py demo/1.jpg demo/2.jpg demo/3.png --config examples/per_slide_config.json --split-len 30
+```
+**Fonctionnalités démontrées:**
+- Durée différente pour chaque slide
+- Vitesse de dessin différente pour chaque slide
+- Pause avant transition
+- Idéal pour créer des présentations dynamiques
+
+### 2. Couches multiples (Layers)
+
+#### layers_composition.json
+Composition de plusieurs images sur une même slide avec positionnement et propriétés.
+```bash
+python whiteboard_animator.py demo/placeholder.png --config examples/layers_composition.json --split-len 30
+```
+**Fonctionnalités démontrées:**
+- Trois images superposées sur la même slide
+- Positionnement précis (x, y) de chaque couche
+- Ordre de superposition (z-index)
+- Échelle et opacité personnalisées pour chaque couche
+- Vitesses de dessin différentes par couche
+
+### 3. Animations avancées de couches
+
+#### advanced_layer_modes.json
+Différents modes d'animation pour les couches (draw, eraser, static).
+```bash
+python whiteboard_animator.py demo/placeholder.png --config examples/advanced_layer_modes.json --split-len 30
+```
+**Fonctionnalités démontrées:**
+- **Mode draw** : Dessin normal avec la main (couche 1)
+- **Mode eraser** : Animation avec une gomme (couche 2)
+- **Mode static** : Apparition sans animation de dessin (couche 3)
+- Animations d'entrée (fade_in, zoom_in)
+- Animation de sortie (fade_out)
+
+#### entrance_exit_animations.json
+Démonstration complète des animations d'entrée et de sortie.
+```bash
+python whiteboard_animator.py demo/placeholder.png --config examples/entrance_exit_animations.json --split-len 30
+```
+**Fonctionnalités démontrées:**
+- Animation d'entrée **fade_in** : Fondu depuis blanc
+- Animation d'entrée **slide_in_left** : Glissement depuis la gauche
+- Animation d'entrée **slide_in_bottom** : Glissement depuis le bas
+- Animation de sortie **slide_out_top** : Glissement vers le haut
+- Combinaison d'entrées et sorties sur une même couche
+- Types disponibles: fade_in/out, slide_in/out (left/right/top/bottom), zoom_in/out
+
+#### morphing_layers.json
+Effet de morphing fluide entre deux couches consécutives.
+```bash
+python whiteboard_animator.py demo/placeholder.png --config examples/morphing_layers.json --split-len 30
+```
+**Fonctionnalités démontrées:**
+- Transition morphing progressive entre deux images
+- Interpolation automatique des pixels
+- Durée personnalisable
+- Idéal pour transitions entre contenus similaires
+
+### 4. Contrôles de caméra et animations post-dessin
 
 #### camera_zoom_basic.json
 Exemple basique de zoom de caméra sur une couche unique.
@@ -63,6 +162,59 @@ python whiteboard_animator.py demo/1.jpg demo/2.jpg --config examples/multi_slid
 - Deux slides avec focus différents
 - Zoom-in sur chaque slide
 - Transition fade entre les slides
+
+### 5. Showcase complet
+
+#### complete_showcase.json
+Exemple combinant plusieurs fonctionnalités avancées pour créer une animation riche.
+```bash
+python whiteboard_animator.py demo/placeholder.png demo/placeholder.png --config examples/complete_showcase.json --split-len 30
+```
+**Fonctionnalités démontrées:**
+- Plusieurs slides avec layers multiples
+- Contrôles de caméra (zoom et positionnement)
+- Animations post-dessin (zoom progressif)
+- Mode static avec animations d'entrée
+- Transitions personnalisées entre slides
+- Pauses avant transitions
+- Configuration complexe pour vidéos professionnelles
+
+## Aperçu rapide des concepts
+
+### Concepts de base
+- ✅ **Animation de dessin** : Effet whiteboard avec main qui dessine
+- ✅ **Slides multiples** : Plusieurs images dessinées séquentiellement
+- ✅ **Transitions** : Effets visuels entre slides (fade, wipe, push, iris)
+- ✅ **Configuration par slide** : Durée, vitesse, transitions personnalisées
+
+### Concepts avancés
+- ✅ **Couches (Layers)** : Superposition d'images sur une même slide
+- ✅ **z-index** : Ordre d'affichage des couches
+- ✅ **Positionnement** : Placement précis (x, y) de chaque couche
+- ✅ **Transformations** : Scale (échelle) et opacity (transparence)
+- ✅ **Modes d'animation** : draw (dessin), eraser (gomme), static (statique)
+- ✅ **Animations d'entrée/sortie** : fade, slide, zoom pour apparitions/disparitions
+- ✅ **Morphing** : Transition fluide entre couches
+- ✅ **Contrôles de caméra** : Zoom et focus sur zones spécifiques
+- ✅ **Animations post-dessin** : Effets de zoom après le dessin
+
+## Guide de démarrage
+
+### Pour débuter (concepts de base)
+1. **basic_drawing.json** - Commencez ici pour comprendre l'animation de base
+2. **multi_slide_transitions.json** - Apprenez à enchaîner plusieurs images
+3. **all_transitions.json** - Explorez tous les types de transitions
+
+### Pour progresser (couches et compositions)
+4. **layers_composition.json** - Découvrez la superposition d'images
+5. **per_slide_config.json** - Personnalisez chaque slide individuellement
+
+### Pour maîtriser (animations avancées)
+6. **advanced_layer_modes.json** - Modes draw, eraser, static
+7. **entrance_exit_animations.json** - Animations d'apparition/disparition
+8. **morphing_layers.json** - Transitions fluides entre images
+9. **camera_zoom_basic.json** - Contrôles de caméra de base
+10. **complete_showcase.json** - Tous les concepts combinés
 
 ## Scripts d'analyse
 
@@ -147,6 +299,25 @@ for frame in data['animation']['frames_written']:
 
 ## Conseils d'utilisation
 
+### Pour les exemples de base
+1. **Commencez simple**: Testez d'abord `basic_drawing.json` pour comprendre les fondamentaux
+2. **Expérimentez les transitions**: Utilisez `all_transitions.json` pour voir tous les effets
+3. **Progressez graduellement**: Suivez le guide de démarrage ci-dessus
+
+### Pour les couches multiples
+1. **Planifiez votre composition**: Dessinez d'abord la structure de vos couches
+2. **Utilisez le z-index**: Organisez l'ordre de superposition (1 = fond, 2+ = premier plan)
+3. **Ajustez les vitesses**: Variez les skip_rate pour des effets dynamiques
+4. **Jouez avec l'opacité**: Créez des effets de transparence pour des compositions subtiles
+
+### Pour les animations avancées
+1. **Testez les modes**: draw pour dessin normal, eraser pour effacer, static pour apparition instantanée
+2. **Durées recommandées**: 
+   - Entrance/Exit animations: 0.5-1.5 secondes
+   - Morphing: 0.3-0.8 secondes
+   - Animations de zoom: 1.0-2.5 secondes
+3. **Combinez intelligemment**: static + entrance/exit pour logos, draw + morph pour transitions
+
 ### Pour les exemples de caméra
 1. **Commencez simple**: Testez d'abord `camera_zoom_basic.json` pour comprendre les bases
 2. **Ajustez les paramètres**: Modifiez les valeurs de zoom et position selon vos besoins
@@ -163,6 +334,47 @@ for frame in data['animation']['frames_written']:
 - Coordonnez les effets de zoom avec les transitions pour une fluidité optimale
 
 ## Cas d'utilisation
+
+### Vidéos éducatives
+- Utilisez **basic_drawing.json** pour des explications simples
+- Utilisez **layers_composition.json** pour des diagrammes complexes
+- Utilisez **per_slide_config.json** pour varier les rythmes selon la complexité
+
+### Présentations marketing
+- Utilisez **entrance_exit_animations.json** pour des effets percutants
+- Utilisez **morphing_layers.json** pour des transitions élégantes
+- Utilisez **camera_zoom_basic.json** pour mettre en valeur des détails
+
+### Tutoriels et formations
+- Utilisez **multi_slide_transitions.json** pour structurer le contenu
+- Utilisez **advanced_layer_modes.json** pour corriger/effacer des éléments
+- Utilisez **complete_showcase.json** comme référence pour des vidéos professionnelles
+
+### Contenu pour réseaux sociaux
+- **Format vertical (9:16)**: Ajoutez `--aspect-ratio 9:16` pour TikTok/Reels
+- **Format carré (1:1)**: Ajoutez `--aspect-ratio 1:1` pour Instagram
+- **Qualité optimale**: Ajoutez `--quality 18` pour une qualité visually lossless
+- **Watermark**: Ajoutez `--watermark logo.png` pour protéger votre contenu
+
+### Récapitulatif des fonctionnalités par fichier
+
+| Fichier | Base | Layers | Animations | Caméra | Transitions | Niveau |
+|---------|------|--------|------------|---------|-------------|--------|
+| basic_drawing.json | ✅ | ❌ | ❌ | ❌ | ❌ | Débutant |
+| multi_slide_transitions.json | ✅ | ❌ | ❌ | ❌ | ✅ | Débutant |
+| all_transitions.json | ✅ | ❌ | ❌ | ❌ | ✅ | Débutant |
+| per_slide_config.json | ✅ | ❌ | ❌ | ❌ | ✅ | Intermédiaire |
+| layers_composition.json | ✅ | ✅ | ❌ | ❌ | ❌ | Intermédiaire |
+| advanced_layer_modes.json | ✅ | ✅ | ✅ | ❌ | ❌ | Avancé |
+| entrance_exit_animations.json | ✅ | ✅ | ✅ | ❌ | ❌ | Avancé |
+| morphing_layers.json | ✅ | ✅ | ✅ | ❌ | ❌ | Avancé |
+| camera_zoom_basic.json | ✅ | ❌ | ❌ | ✅ | ❌ | Intermédiaire |
+| animation_zoom_in.json | ✅ | ❌ | ✅ | ✅ | ❌ | Avancé |
+| camera_and_animation.json | ✅ | ❌ | ✅ | ✅ | ❌ | Avancé |
+| multi_layer_camera.json | ✅ | ✅ | ✅ | ✅ | ❌ | Avancé |
+| cinematic_reveal.json | ✅ | ❌ | ✅ | ✅ | ❌ | Avancé |
+| multi_slide_camera.json | ✅ | ✅ | ✅ | ✅ | ✅ | Expert |
+| complete_showcase.json | ✅ | ✅ | ✅ | ✅ | ✅ | Expert |
 
 Les données d'animation exportées peuvent être utilisées pour :
 
