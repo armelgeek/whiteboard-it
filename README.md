@@ -5,9 +5,10 @@ Application de création d'animations de type "dessin sur tableau blanc" (whiteb
 ## Fonctionnalités
 
 - ✅ Génération de vidéos d'animation de dessin à partir d'images
-- ✅ **Contrôles de caméra** - Zoom et focus sur des zones spécifiques (NOUVEAU)
-- ✅ **Animations avancées** - Effets de zoom-in/zoom-out post-dessin (NOUVEAU)
-- ✅ **Gomme intelligente** - Effet d'effacement naturel pour les couches superposées (NOUVEAU)
+- ✅ **🆕 Couches de texte dynamiques** - Texte généré à la volée avec animation handwriting (NOUVEAU!)
+- ✅ **Contrôles de caméra** - Zoom et focus sur des zones spécifiques
+- ✅ **Animations avancées** - Effets de zoom-in/zoom-out post-dessin
+- ✅ **Gomme intelligente** - Effet d'effacement naturel pour les couches superposées
 - ✅ **Couches multiples (layers)** - Superposition d'images sur une même slide avec hiérarchie
 - ✅ **Qualité vidéo améliorée** - CRF ajustable pour une qualité optimale
 - ✅ **Export multi-formats** - Support 1:1, 16:9, 9:16 en HD
@@ -27,15 +28,15 @@ git clone https://github.com/armelgeek/whiteboard-it.git
 cd whiteboard-it
 
 # Installer les dépendances de base
-pip install opencv-python numpy
+pip install opencv-python numpy pillow
 
 # Requis pour la conversion H.264 et la concaténation de vidéos multiples
 pip install av
 ```
 
-**Note:** Le module `av` (PyAV) est fortement recommandé pour :
-- La conversion des vidéos en format H.264
-- La combinaison de plusieurs images en une seule vidéo
+**Note:** 
+- Le module `av` (PyAV) est fortement recommandé pour la conversion H.264 et la combinaison de vidéos
+- Le module `pillow` est requis pour les couches de texte dynamiques
 
 ## Utilisation
 
@@ -258,6 +259,75 @@ Ajoutez des effets de zoom après le dessin de la couche :
 - `zoom_out` : Zoom progressif vers l'extérieur
 
 Voir [CAMERA_ANIMATION_GUIDE.md](CAMERA_ANIMATION_GUIDE.md) pour la documentation complète des contrôles de caméra et animations.
+
+## Couches de texte dynamiques (NOUVEAU! 🆕)
+
+Créez des animations de texte sans avoir besoin de créer des images ! Le texte est généré dynamiquement et animé avec l'effet handwriting.
+
+### Exemple de base
+
+```json
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 6,
+      "layers": [
+        {
+          "type": "text",
+          "z_index": 1,
+          "skip_rate": 12,
+          "text_config": {
+            "text": "Bonjour!\nCeci est un texte\navec animation handwriting",
+            "font": "DejaVuSans",
+            "size": 48,
+            "color": [0, 0, 255],
+            "style": "bold",
+            "line_height": 1.5,
+            "align": "center"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Fonctionnalités des couches de texte
+
+- **Multi-ligne** : Utilisez `\n` pour les sauts de ligne
+- **Polices personnalisées** : N'importe quelle police système
+- **Styles** : normal, bold, italic, bold_italic
+- **Couleurs** : RGB tuples, codes hex, noms de couleurs
+- **Alignement** : left, center, right
+- **Position** : Positionnement absolu avec x, y
+- **Animation** : Handwriting, static, eraser
+- **Animations d'entrée/sortie** : fade_in, slide_in, zoom_in, etc.
+
+### Mélanger texte et images
+
+```json
+{
+  "layers": [
+    {
+      "image_path": "background.png",
+      "z_index": 1
+    },
+    {
+      "type": "text",
+      "z_index": 2,
+      "text_config": {
+        "text": "Titre sur l'image",
+        "size": 64,
+        "color": "#FFFFFF",
+        "style": "bold"
+      }
+    }
+  ]
+}
+```
+
+**📚 Guide complet:** Voir [TEXT_LAYERS_GUIDE.md](TEXT_LAYERS_GUIDE.md) pour la documentation complète des couches de texte.
 
 ## Format d'export JSON
 

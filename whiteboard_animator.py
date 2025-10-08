@@ -9,6 +9,7 @@ import datetime
 import cv2
 import numpy as np
 import argparse
+from PIL import Image, ImageDraw, ImageFont
 # from kivy.clock import Clock # COMMENTÉ: Remplacé par un appel direct pour CLI
 
 # --- Variables Globales ---
@@ -35,6 +36,164 @@ DEFAULT_MAIN_IMG_DURATION = 3
 DEFAULT_CRF = 18  # Lower = better quality (0-51, 18 is visually lossless)
 
 # --- Classes et Fonctions ---
+
+def render_text_to_image(text_config, target_width, target_height):
+    """Render text to an image using PIL/Pillow.
+    
+    Args:
+        text_config: Dictionary with text configuration:
+            - text: The text content to render
+            - font: Font family name (default: "Arial")
+            - size: Font size in pixels (default: 32)
+            - color: Text color as RGB tuple or hex string (default: (0, 0, 0) black)
+            - style: "normal", "bold", "italic", or "bold_italic" (default: "normal")
+            - line_height: Line spacing multiplier (default: 1.2)
+            - align: "left", "center", or "right" (default: "left")
+            - position: Optional dict with x, y for absolute positioning
+        target_width: Canvas width
+        target_height: Canvas height
+        
+    Returns:
+        numpy array (BGR format) with rendered text on white background
+    """
+    # Extract configuration
+    text = text_config.get('text', '')
+    font_name = text_config.get('font', 'Arial')
+    font_size = text_config.get('size', 32)
+    color = text_config.get('color', (0, 0, 0))  # Default black
+    style = text_config.get('style', 'normal')
+    line_height_multiplier = text_config.get('line_height', 1.2)
+    align = text_config.get('align', 'left')
+    position = text_config.get('position', None)
+    
+    # Convert color to tuple if it's a list
+    if isinstance(color, list):
+        color = tuple(color)
+    
+    # Convert hex color to RGB if needed
+    if isinstance(color, str):
+        if color.startswith('#'):
+            color = tuple(int(color[i:i+2], 16) for i in (1, 3, 5))
+        else:
+            # Named colors - basic support
+            color_map = {
+                'black': (0, 0, 0),
+                'white': (255, 255, 255),
+                'red': (255, 0, 0),
+                'green': (0, 255, 0),
+                'blue': (0, 0, 255),
+            }
+            color = color_map.get(color.lower(), (0, 0, 0))
+    
+    # Create a white canvas
+    img = Image.new('RGB', (target_width, target_height), color='white')
+    draw = ImageDraw.Draw(img)
+    
+    # Load font with style
+    font = None
+    try:
+        # Try to load the font with style
+        if style == 'bold':
+            # Try common bold font variations
+            for font_variant in [f"{font_name} Bold", f"{font_name}-Bold", f"{font_name}bd"]:
+                try:
+                    font = ImageFont.truetype(font_variant, font_size)
+                    break
+                except:
+                    pass
+        elif style == 'italic':
+            # Try common italic font variations
+            for font_variant in [f"{font_name} Italic", f"{font_name}-Italic", f"{font_name}i"]:
+                try:
+                    font = ImageFont.truetype(font_variant, font_size)
+                    break
+                except:
+                    pass
+        elif style == 'bold_italic':
+            # Try common bold italic font variations
+            for font_variant in [f"{font_name} Bold Italic", f"{font_name}-BoldItalic", f"{font_name}bi"]:
+                try:
+                    font = ImageFont.truetype(font_variant, font_size)
+                    break
+                except:
+                    pass
+        
+        # If no styled font found, try base font
+        if font is None:
+            font = ImageFont.truetype(font_name, font_size)
+    except:
+        # If font not found, try common system fonts
+        common_fonts = [
+            "DejaVuSans.ttf", "Arial.ttf", "arial.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+            "C:\\Windows\\Fonts\\arial.ttf"
+        ]
+        for font_path in common_fonts:
+            try:
+                font = ImageFont.truetype(font_path, font_size)
+                break
+            except:
+                pass
+        
+        # Fall back to default font if nothing works
+        if font is None:
+            try:
+                font = ImageFont.load_default()
+            except:
+                # Last resort: use default PIL font
+                font = ImageFont.load_default()
+    
+    # Split text into lines
+    lines = text.split('\n')
+    
+    # Calculate line height
+    try:
+        # Get the height of a sample line
+        bbox = draw.textbbox((0, 0), "Ay", font=font)
+        line_height = int((bbox[3] - bbox[1]) * line_height_multiplier)
+    except:
+        line_height = int(font_size * line_height_multiplier)
+    
+    # Calculate total text height
+    total_height = len(lines) * line_height
+    
+    # Determine starting y position
+    if position and 'y' in position:
+        y = position['y']
+    else:
+        # Center vertically if no position specified
+        y = (target_height - total_height) // 2
+    
+    # Draw each line
+    for line in lines:
+        # Get line width for alignment
+        try:
+            bbox = draw.textbbox((0, 0), line, font=font)
+            line_width = bbox[2] - bbox[0]
+        except:
+            line_width = len(line) * font_size // 2
+        
+        # Determine x position based on alignment
+        if position and 'x' in position:
+            x = position['x']
+        elif align == 'center':
+            x = (target_width - line_width) // 2
+        elif align == 'right':
+            x = target_width - line_width - 20  # 20px margin
+        else:  # left
+            x = 20  # 20px margin
+        
+        # Draw the text
+        draw.text((x, y), line, fill=color, font=font)
+        y += line_height
+    
+    # Convert PIL Image to OpenCV format (BGR)
+    img_array = np.array(img)
+    img_bgr = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
+    
+    return img_bgr
+
 
 def euc_dist(arr1, point):
     """Calcule la distance euclidienne entre un tableau de points (arr1) et un seul point."""
@@ -940,19 +1099,36 @@ def draw_layered_whiteboard_animations(
               f"z_index={layer.get('z_index', 0)}")
         
         try:
-            # Charger l'image de la couche
-            image_path = layer.get('image_path', '')
-            if not os.path.isabs(image_path):
-                image_path = os.path.join(base_path, image_path)
+            # Check if this is a text layer
+            layer_type = layer.get('type', 'image')
             
-            if not os.path.exists(image_path):
-                print(f"    ⚠️ Image de couche introuvable: {image_path}")
-                continue
-            
-            layer_img_original = cv2.imread(image_path)
-            if layer_img_original is None:
-                print(f"    ⚠️ Impossible de lire l'image: {image_path}")
-                continue
+            if layer_type == 'text':
+                # Render text to image
+                text_config = layer.get('text_config', {})
+                if not text_config or 'text' not in text_config:
+                    print(f"    ⚠️ Configuration de texte manquante ou invalide")
+                    continue
+                
+                print(f"    📝 Génération de texte: \"{text_config.get('text', '')[:50]}...\"")
+                layer_img_original = render_text_to_image(
+                    text_config,
+                    variables.resize_wd,
+                    variables.resize_ht
+                )
+            else:
+                # Charger l'image de la couche
+                image_path = layer.get('image_path', '')
+                if not os.path.isabs(image_path):
+                    image_path = os.path.join(base_path, image_path)
+                
+                if not os.path.exists(image_path):
+                    print(f"    ⚠️ Image de couche introuvable: {image_path}")
+                    continue
+                
+                layer_img_original = cv2.imread(image_path)
+                if layer_img_original is None:
+                    print(f"    ⚠️ Impossible de lire l'image: {image_path}")
+                    continue
             
             # Appliquer l'échelle
             scale = layer.get('scale', 1.0)
@@ -1595,20 +1771,37 @@ def compose_layers(layers_config, target_width, target_height, base_path="."):
     
     for layer in sorted_layers:
         try:
-            # Résoudre le chemin de l'image
-            image_path = layer.get('image_path', '')
-            if not os.path.isabs(image_path):
-                image_path = os.path.join(base_path, image_path)
+            # Check if this is a text layer
+            layer_type = layer.get('type', 'image')
             
-            if not os.path.exists(image_path):
-                print(f"    ⚠️ Image de couche introuvable: {image_path}")
-                continue
-            
-            # Lire l'image de la couche
-            layer_img = cv2.imread(image_path)
-            if layer_img is None:
-                print(f"    ⚠️ Impossible de lire l'image: {image_path}")
-                continue
+            if layer_type == 'text':
+                # Render text to image
+                text_config = layer.get('text_config', {})
+                if not text_config or 'text' not in text_config:
+                    print(f"    ⚠️ Configuration de texte manquante ou invalide")
+                    continue
+                
+                print(f"    📝 Génération de texte pour composition")
+                layer_img = render_text_to_image(
+                    text_config,
+                    target_width,
+                    target_height
+                )
+            else:
+                # Résoudre le chemin de l'image
+                image_path = layer.get('image_path', '')
+                if not os.path.isabs(image_path):
+                    image_path = os.path.join(base_path, image_path)
+                
+                if not os.path.exists(image_path):
+                    print(f"    ⚠️ Image de couche introuvable: {image_path}")
+                    continue
+                
+                # Lire l'image de la couche
+                layer_img = cv2.imread(image_path)
+                if layer_img is None:
+                    print(f"    ⚠️ Impossible de lire l'image: {image_path}")
+                    continue
             
             # Appliquer l'échelle si spécifiée
             scale = layer.get('scale', 1.0)
@@ -1676,7 +1869,14 @@ def compose_layers(layers_config, target_width, target_height, base_path="."):
             
             z_idx = layer.get('z_index', 0)
             eraser_str = ", eraser:on" if intelligent_eraser else ""
-            print(f"    ✓ Couche appliquée: {os.path.basename(image_path)} " + 
+            
+            # Get layer description for logging
+            if layer_type == 'text':
+                layer_desc = f"text:{text_config.get('text', '')[:30]}..."
+            else:
+                layer_desc = os.path.basename(image_path)
+            
+            print(f"    ✓ Couche appliquée: {layer_desc} " + 
                   f"(z:{z_idx}, pos:{x},{y}, scale:{scale:.2f}, opacity:{opacity:.2f}{eraser_str})")
         
         except Exception as e:

@@ -113,6 +113,39 @@ python whiteboard_animator.py demo/placeholder.png --config examples/morphing_la
 - Durée personnalisable
 - Idéal pour transitions entre contenus similaires
 
+#### text_layer_example.json
+✨ **NOUVEAU** : Démonstration des couches de texte avec animation handwriting.
+```bash
+python whiteboard_animator.py --config examples/text_layer_example.json --split-len 30
+```
+**Fonctionnalités démontrées:**
+- **Couches de texte dynamiques** : Génération de texte à la volée (pas besoin d'images)
+- **Support multi-ligne** : Utilisez `\n` pour sauter des lignes
+- **Styles de police** : normal, bold, italic, bold_italic
+- **Couleurs personnalisables** : RGB tuple ou hex (ex: "#FF0000")
+- **Alignement** : left, center, right
+- **Animation handwriting** : Le texte est "écrit" comme avec un stylo
+- **Animations d'entrée/sortie** : Compatible avec fade_in, slide_in, etc.
+- **Position personnalisée** : Placement précis du texte sur le canvas
+
+**Configuration de texte:**
+```json
+{
+  "type": "text",
+  "z_index": 1,
+  "skip_rate": 12,
+  "text_config": {
+    "text": "Mon texte\nMulti-ligne",
+    "font": "DejaVuSans",
+    "size": 48,
+    "color": "#0066CC",
+    "style": "bold",
+    "line_height": 1.5,
+    "align": "center"
+  }
+}
+```
+
 ### 4. Contrôles de caméra et animations post-dessin
 
 #### camera_zoom_basic.json
