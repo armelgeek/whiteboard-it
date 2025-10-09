@@ -326,6 +326,144 @@ def render_text_to_image(text_config, target_width, target_height):
     return img_bgr
 
 
+def render_shape_to_image(shape_config, target_width, target_height):
+    """Render geometric shapes to an image using OpenCV.
+    
+    Args:
+        shape_config: Dictionary with shape configuration:
+            - shape: Shape type ("circle", "rectangle", "triangle", "polygon", "line", "arrow")
+            - color: Shape color as RGB tuple or hex string (default: (0, 0, 0) black)
+            - fill_color: Fill color as RGB tuple or hex string (default: None - no fill)
+            - stroke_width: Line thickness in pixels (default: 2)
+            - position: Dict with x, y for shape center/start (default: canvas center)
+            - size: Size parameter (radius for circle, width/height for rectangle, etc.)
+            - points: List of points for polygon [[x1, y1], [x2, y2], ...]
+            - start: Start point for line/arrow [x, y]
+            - end: End point for line/arrow [x, y]
+            - arrow_size: Arrow head size for arrow type (default: 20)
+        target_width: Canvas width
+        target_height: Canvas height
+        
+    Returns:
+        numpy array (BGR format) with rendered shape on white background
+    """
+    # Create a white canvas
+    img = np.ones((target_height, target_width, 3), dtype=np.uint8) * 255
+    
+    # Extract configuration
+    shape_type = shape_config.get('shape', 'circle')
+    color = shape_config.get('color', (0, 0, 0))
+    fill_color = shape_config.get('fill_color', None)
+    stroke_width = shape_config.get('stroke_width', 2)
+    position = shape_config.get('position', {'x': target_width // 2, 'y': target_height // 2})
+    size = shape_config.get('size', 100)
+    
+    # Convert color to tuple if it's a list
+    if isinstance(color, list):
+        color = tuple(color)
+    
+    # Convert hex color to BGR if needed
+    def hex_to_bgr(hex_color):
+        if isinstance(hex_color, str) and hex_color.startswith('#'):
+            rgb = tuple(int(hex_color[i:i+2], 16) for i in (1, 3, 5))
+            return (rgb[2], rgb[1], rgb[0])  # Convert RGB to BGR
+        elif isinstance(hex_color, (list, tuple)) and len(hex_color) == 3:
+            return (hex_color[2], hex_color[1], hex_color[0])  # Convert RGB to BGR
+        return hex_color
+    
+    color = hex_to_bgr(color)
+    if fill_color:
+        fill_color = hex_to_bgr(fill_color)
+    
+    # Get position
+    x = position.get('x', target_width // 2)
+    y = position.get('y', target_height // 2)
+    center = (int(x), int(y))
+    
+    # Render shape based on type
+    if shape_type == 'circle':
+        radius = int(size)
+        if fill_color:
+            cv2.circle(img, center, radius, fill_color, -1)
+        cv2.circle(img, center, radius, color, stroke_width)
+    
+    elif shape_type == 'rectangle':
+        width = shape_config.get('width', size)
+        height = shape_config.get('height', size)
+        x1 = int(x - width / 2)
+        y1 = int(y - height / 2)
+        x2 = int(x + width / 2)
+        y2 = int(y + height / 2)
+        if fill_color:
+            cv2.rectangle(img, (x1, y1), (x2, y2), fill_color, -1)
+        cv2.rectangle(img, (x1, y1), (x2, y2), color, stroke_width)
+    
+    elif shape_type == 'triangle':
+        # Equilateral triangle centered at position
+        h = int(size * np.sqrt(3) / 2)
+        pts = np.array([
+            [x, y - 2*h//3],  # Top
+            [x - size//2, y + h//3],  # Bottom left
+            [x + size//2, y + h//3]   # Bottom right
+        ], np.int32)
+        pts = pts.reshape((-1, 1, 2))
+        if fill_color:
+            cv2.fillPoly(img, [pts], fill_color)
+        cv2.polylines(img, [pts], True, color, stroke_width)
+    
+    elif shape_type == 'polygon':
+        points = shape_config.get('points', [])
+        if points:
+            pts = np.array(points, np.int32)
+            pts = pts.reshape((-1, 1, 2))
+            if fill_color:
+                cv2.fillPoly(img, [pts], fill_color)
+            cv2.polylines(img, [pts], True, color, stroke_width)
+    
+    elif shape_type == 'line':
+        start = shape_config.get('start', [x - size, y])
+        end = shape_config.get('end', [x + size, y])
+        pt1 = (int(start[0]), int(start[1]))
+        pt2 = (int(end[0]), int(end[1]))
+        cv2.line(img, pt1, pt2, color, stroke_width)
+    
+    elif shape_type == 'arrow':
+        start = shape_config.get('start', [x - size, y])
+        end = shape_config.get('end', [x + size, y])
+        arrow_size = shape_config.get('arrow_size', 20)
+        pt1 = (int(start[0]), int(start[1]))
+        pt2 = (int(end[0]), int(end[1]))
+        
+        # Draw main line
+        cv2.line(img, pt1, pt2, color, stroke_width)
+        
+        # Calculate arrow head
+        angle = np.arctan2(end[1] - start[1], end[0] - start[0])
+        arrow_angle = np.pi / 6  # 30 degrees
+        
+        # Arrow head points
+        p1 = (
+            int(pt2[0] - arrow_size * np.cos(angle - arrow_angle)),
+            int(pt2[1] - arrow_size * np.sin(angle - arrow_angle))
+        )
+        p2 = (
+            int(pt2[0] - arrow_size * np.cos(angle + arrow_angle)),
+            int(pt2[1] - arrow_size * np.sin(angle + arrow_angle))
+        )
+        
+        # Draw arrow head
+        cv2.line(img, pt2, p1, color, stroke_width)
+        cv2.line(img, pt2, p2, color, stroke_width)
+        
+        # Optionally fill arrow head
+        if fill_color:
+            arrow_pts = np.array([pt2, p1, p2], np.int32)
+            arrow_pts = arrow_pts.reshape((-1, 1, 2))
+            cv2.fillPoly(img, [arrow_pts], fill_color)
+    
+    return img
+
+
 def extract_character_paths(text, font_path, font_size):
     """
     Extract vector paths from font characters.
@@ -2388,6 +2526,20 @@ def draw_layered_whiteboard_animations(
                     variables.resize_wd,
                     variables.resize_ht
                 )
+            elif layer_type == 'shape':
+                # Render shape to image
+                shape_config = layer.get('shape_config', {})
+                if not shape_config or 'shape' not in shape_config:
+                    print(f"    ⚠️ Configuration de forme manquante ou invalide")
+                    continue
+                
+                shape_type = shape_config.get('shape', 'circle')
+                print(f"    🔷 Génération de forme: {shape_type}")
+                layer_img_original = render_shape_to_image(
+                    shape_config,
+                    variables.resize_wd,
+                    variables.resize_ht
+                )
             else:
                 # Charger l'image de la couche
                 image_path = layer.get('image_path', '')
@@ -3196,6 +3348,20 @@ def compose_layers(layers_config, target_width, target_height, base_path="."):
                 print(f"    📝 Génération de texte pour composition")
                 layer_img = render_text_to_image(
                     text_config,
+                    target_width,
+                    target_height
+                )
+            elif layer_type == 'shape':
+                # Render shape to image
+                shape_config = layer.get('shape_config', {})
+                if not shape_config or 'shape' not in shape_config:
+                    print(f"    ⚠️ Configuration de forme manquante ou invalide")
+                    continue
+                
+                shape_type = shape_config.get('shape', 'circle')
+                print(f"    🔷 Génération de forme pour composition: {shape_type}")
+                layer_img = render_shape_to_image(
+                    shape_config,
                     target_width,
                     target_height
                 )
