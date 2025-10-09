@@ -5470,10 +5470,6 @@ def main():
             enable_typewriter_sound=args.enable_typewriter_sound,
             enable_drawing_sound=args.enable_drawing_sound
         )
-            watermark_position=args.watermark_position,
-            watermark_opacity=args.watermark_opacity,
-            watermark_scale=args.watermark_scale
-        )
         
         print("\n" + "="*60)
         if result["status"]:

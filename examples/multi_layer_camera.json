@@ -37,14 +37,14 @@
           "scale": 0.4,
           "camera": {
             "zoom": 1.2,
-            "position": {"x": 0.7, "y": 0.7}
+            "position": {"x": 400, "y": 400}
           },
           "animation": {
             "type": "zoom_in",
             "duration": 1.5,
             "start_zoom": 1.2,
             "end_zoom": 2.0,
-            "focus_position": {"x": 0.7, "y": 0.7}
+            "focus_position": {"x": 400, "y": 400}
           }
         }
       ]

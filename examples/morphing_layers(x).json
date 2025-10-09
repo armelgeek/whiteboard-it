@@ -12,8 +12,8 @@
           "mode": "draw"
         },
         {
-          "image_path": "demo/2.jpg",
-          "position": {"x": 0, "y": 0},
+          "image_path": "demo/1.jpg",
+          "position": {"x": 700, "y": 0},
           "z_index": 2,
           "skip_rate": 10,
           "mode": "draw",
