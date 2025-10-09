@@ -12,6 +12,7 @@ Whiteboard-It now supports **dynamic text layers** with handwriting animation! N
 
 ✅ **Texte dynamique** / **Dynamic text** - Généré automatiquement, pas besoin d'images  
 ✅ **Multi-ligne** / **Multi-line** - Support complet avec `\n` pour les sauts de ligne  
+✅ **Écriture ligne par ligne** / **Line-by-line typing** - Écrit chaque ligne complètement avant la suivante  
 ✅ **Polices personnalisées** / **Custom fonts** - N'importe quelle police système  
 ✅ **Styles** / **Styles** - Normal, bold, italic, bold_italic  
 ✅ **Couleurs** / **Colors** - RGB, hex, noms de couleurs  

@@ -1,0 +1,26 @@
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 6,
+      "skip_rate": 8,
+      "layers": [
+        {
+          "type": "text",
+          "z_index": 1,
+          "skip_rate": 5,
+          "mode": "draw",
+          "text_config": {
+            "text": "Armel Wanes\nProject",
+            "font": "DejaVuSans",
+            "size": 72,
+            "color": [0, 0, 0],
+            "style": "bold",
+            "line_height": 1.5,
+            "align": "left"
+          }
+        }
+      ]
+    }
+  ]
+}
