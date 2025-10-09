@@ -643,14 +643,56 @@ def get_extreme_coordinates(mask):
     return topleft, bottomright
 
 
-def apply_camera_transform(frame, camera_config, frame_width, frame_height):
+def easing_function(progress, easing_type='linear'):
+    """Apply easing function to progress value (0.0 to 1.0).
+    
+    Args:
+        progress: Value between 0.0 and 1.0
+        easing_type: Type of easing function
+            - 'linear': No easing
+            - 'ease_in': Slow start
+            - 'ease_out': Slow end (recommended for camera movements)
+            - 'ease_in_out': Slow start and end
+            - 'ease_in_cubic': Stronger slow start
+            - 'ease_out_cubic': Stronger slow end
+    
+    Returns:
+        Eased progress value between 0.0 and 1.0
+    """
+    if easing_type == 'linear':
+        return progress
+    elif easing_type == 'ease_in':
+        # Quadratic ease in
+        return progress * progress
+    elif easing_type == 'ease_out':
+        # Quadratic ease out
+        return progress * (2 - progress)
+    elif easing_type == 'ease_in_out':
+        # Quadratic ease in-out
+        if progress < 0.5:
+            return 2 * progress * progress
+        else:
+            return -1 + (4 - 2 * progress) * progress
+    elif easing_type == 'ease_in_cubic':
+        # Cubic ease in
+        return progress * progress * progress
+    elif easing_type == 'ease_out_cubic':
+        # Cubic ease out
+        p = progress - 1
+        return p * p * p + 1
+    else:
+        return progress
+
+
+def apply_camera_transform(frame, camera_config, frame_width, frame_height, camera_size=None):
     """Apply camera zoom and position transformations to a frame.
     
     Args:
         frame: Input frame (numpy array)
-        camera_config: Dictionary with camera settings (zoom, position)
+        camera_config: Dictionary with camera settings (zoom, position, size)
         frame_width: Target frame width
         frame_height: Target frame height
+        camera_size: Optional dict with 'width' and 'height' for camera viewport size
     
     Returns:
         Transformed frame
@@ -661,37 +703,155 @@ def apply_camera_transform(frame, camera_config, frame_width, frame_height):
     zoom = camera_config.get('zoom', 1.0)
     position = camera_config.get('position', {'x': 0.5, 'y': 0.5})
     
-    # If no zoom, return original frame
-    if zoom == 1.0:
-        return frame
+    # Get camera size if specified (for advanced camera system)
+    if camera_size is None:
+        camera_size = camera_config.get('size', None)
     
     h, w = frame.shape[:2]
     
-    # Calculate zoom region
-    zoom_w = int(w / zoom)
-    zoom_h = int(h / zoom)
+    # Calculate the viewport size (what the camera sees)
+    if camera_size:
+        # Use specified camera size
+        viewport_w = int(camera_size.get('width', w))
+        viewport_h = int(camera_size.get('height', h))
+    else:
+        # Calculate based on zoom
+        viewport_w = int(w / zoom)
+        viewport_h = int(h / zoom)
     
     # Calculate center position (0.5, 0.5 is center, 0.0, 0.0 is top-left)
     center_x = int(w * position['x'])
     center_y = int(h * position['y'])
     
     # Calculate crop region
-    x1 = max(0, center_x - zoom_w // 2)
-    y1 = max(0, center_y - zoom_h // 2)
-    x2 = min(w, x1 + zoom_w)
-    y2 = min(h, y1 + zoom_h)
+    x1 = max(0, center_x - viewport_w // 2)
+    y1 = max(0, center_y - viewport_h // 2)
+    x2 = min(w, x1 + viewport_w)
+    y2 = min(h, y1 + viewport_h)
     
     # Adjust if we hit boundaries
-    if x2 - x1 < zoom_w:
-        x1 = max(0, x2 - zoom_w)
-    if y2 - y1 < zoom_h:
-        y1 = max(0, y2 - zoom_h)
+    if x2 - x1 < viewport_w:
+        x1 = max(0, x2 - viewport_w)
+    if y2 - y1 < viewport_h:
+        y1 = max(0, y2 - viewport_h)
     
-    # Crop and resize to original dimensions
+    # Crop and resize to target dimensions
     cropped = frame[y1:y2, x1:x2]
+    
+    # If no zoom/size change and cropped matches target, return as is
+    if cropped.shape[:2] == (frame_height, frame_width):
+        return cropped
+    
     zoomed = cv2.resize(cropped, (frame_width, frame_height), interpolation=cv2.INTER_LINEAR)
     
     return zoomed
+
+
+def generate_camera_sequence_frames(base_frame, cameras, frame_rate, target_width, target_height):
+    """Generate frames for a sequence of camera movements.
+    
+    Args:
+        base_frame: The base frame to apply cameras to
+        cameras: List of camera configurations, each with:
+            - size: dict with width, height (optional, uses aspect ratio by default)
+            - zoom: zoom level (default 1.0)
+            - position: dict with x, y (0.0-1.0, default 0.5, 0.5)
+            - duration: how long to hold this camera view in seconds
+            - transition_duration: time to transition from previous camera (default 0)
+            - easing: easing function type for transition (default 'ease_out')
+        frame_rate: Video frame rate
+        target_width: Output frame width
+        target_height: Output frame height
+    
+    Returns:
+        List of frames for the entire camera sequence
+    """
+    if not cameras or len(cameras) == 0:
+        return [base_frame]
+    
+    all_frames = []
+    prev_camera = None
+    
+    for camera_idx, camera in enumerate(cameras):
+        # Extract camera parameters
+        camera_zoom = camera.get('zoom', 1.0)
+        camera_pos = camera.get('position', {'x': 0.5, 'y': 0.5})
+        camera_size = camera.get('size', None)
+        duration = camera.get('duration', 2.0)
+        transition_duration = camera.get('transition_duration', 0)
+        easing = camera.get('easing', 'ease_out')
+        
+        # Calculate frame counts
+        hold_frames = int(frame_rate * duration)
+        transition_frames = int(frame_rate * transition_duration) if prev_camera and transition_duration > 0 else 0
+        
+        print(f"    📷 Camera {camera_idx + 1}: zoom={camera_zoom:.2f}, pos=({camera_pos['x']:.2f}, {camera_pos['y']:.2f}), duration={duration}s")
+        if transition_frames > 0:
+            print(f"       Transition: {transition_duration}s with {easing} easing")
+        
+        # Generate transition frames from previous camera to current
+        if prev_camera and transition_frames > 0:
+            prev_zoom = prev_camera.get('zoom', 1.0)
+            prev_pos = prev_camera.get('position', {'x': 0.5, 'y': 0.5})
+            prev_size = prev_camera.get('size', None)
+            
+            for i in range(transition_frames):
+                progress = i / max(1, transition_frames - 1) if transition_frames > 1 else 1.0
+                eased_progress = easing_function(progress, easing)
+                
+                # Interpolate camera parameters
+                current_zoom = prev_zoom + (camera_zoom - prev_zoom) * eased_progress
+                current_pos = {
+                    'x': prev_pos['x'] + (camera_pos['x'] - prev_pos['x']) * eased_progress,
+                    'y': prev_pos['y'] + (camera_pos['y'] - prev_pos['y']) * eased_progress
+                }
+                
+                # Interpolate size if both cameras have size specified
+                current_size = None
+                if prev_size and camera_size:
+                    current_size = {
+                        'width': prev_size['width'] + (camera_size['width'] - prev_size['width']) * eased_progress,
+                        'height': prev_size['height'] + (camera_size['height'] - prev_size['height']) * eased_progress
+                    }
+                elif camera_size:
+                    current_size = camera_size
+                
+                # Apply camera transform
+                interpolated_camera = {
+                    'zoom': current_zoom,
+                    'position': current_pos,
+                    'size': current_size
+                }
+                
+                frame = apply_camera_transform(
+                    base_frame.copy(),
+                    interpolated_camera,
+                    target_width,
+                    target_height,
+                    current_size
+                )
+                all_frames.append(frame)
+        
+        # Generate hold frames at current camera position
+        camera_config = {
+            'zoom': camera_zoom,
+            'position': camera_pos,
+            'size': camera_size
+        }
+        
+        for i in range(hold_frames):
+            frame = apply_camera_transform(
+                base_frame.copy(),
+                camera_config,
+                target_width,
+                target_height,
+                camera_size
+            )
+            all_frames.append(frame)
+        
+        prev_camera = camera
+    
+    return all_frames
 
 
 def apply_post_animation_effect(frames_list, effect_config, frame_rate, target_width, target_height):
@@ -1608,7 +1768,7 @@ def draw_whiteboard_animations(
 
 
 def draw_layered_whiteboard_animations(
-    layers_config, hand_path, hand_mask_path, save_video_path, variables, base_path="."
+    layers_config, hand_path, hand_mask_path, save_video_path, variables, base_path=".", slide_config=None
 ):
     """Dessine une animation avec plusieurs couches, chacune avec son propre skip_rate.
     
@@ -1619,6 +1779,7 @@ def draw_layered_whiteboard_animations(
         save_video_path: Chemin de sauvegarde de la vidéo
         variables: Objet AllVariables contenant les paramètres
         base_path: Chemin de base pour résoudre les chemins relatifs
+        slide_config: Configuration complète de la slide (pour les cameras, etc.)
     """
     # Trier les couches par z_index
     sorted_layers = sorted(layers_config, key=lambda x: x.get('z_index', 0))
@@ -2043,37 +2204,67 @@ def draw_layered_whiteboard_animations(
             print(f"    ❌ Erreur lors du dessin de la couche: {e}")
             continue
     
-    # Afficher l'image finale composée pendant la durée spécifiée
-    # Calculate total frames needed for the specified duration
-    total_frames_needed = int(variables.frame_rate * variables.end_gray_img_duration_in_sec)
-    animation_frames = variables.frames_written
-    remaining_frames = max(0, total_frames_needed - animation_frames)
+    # Check if there are camera sequences defined at slide level
+    camera_sequence = slide_config.get('cameras', None) if slide_config else None
     
-    # Display timing information
-    animation_duration = animation_frames / variables.frame_rate
-    final_hold_duration = remaining_frames / variables.frame_rate
-    total_duration = (animation_frames + remaining_frames) / variables.frame_rate
-    
-    print(f"  ⏱️ Animation: {animation_duration:.2f}s ({animation_frames} frames)")
-    print(f"  ⏱️ Final hold: {final_hold_duration:.2f}s ({remaining_frames} frames)")
-    print(f"  ⏱️ Total duration: {total_duration:.2f}s")
-    
-    if animation_frames > total_frames_needed:
-        print(f"  ⚠️ Warning: Animation duration ({animation_duration:.2f}s) exceeds specified duration ({variables.end_gray_img_duration_in_sec}s)")
-    
-    for i in range(remaining_frames):
-        final_frame = variables.drawn_frame.copy()
-        # Appliquer le watermark sur l'image finale uniquement
-        if variables.watermark_path:
-            final_frame = apply_watermark(
-                final_frame,
-                variables.watermark_path,
-                variables.watermark_position,
-                variables.watermark_opacity,
-                variables.watermark_scale
-            )
-        variables.video_object.write(final_frame)
-        variables.frames_written += 1
+    if camera_sequence and len(camera_sequence) > 0:
+        # Advanced camera system: multiple cameras with transitions
+        print(f"  🎥 Processing camera sequence with {len(camera_sequence)} camera(s)")
+        camera_frames = generate_camera_sequence_frames(
+            variables.drawn_frame.copy(),
+            camera_sequence,
+            variables.frame_rate,
+            variables.resize_wd,
+            variables.resize_ht
+        )
+        
+        # Write all camera sequence frames
+        for camera_frame in camera_frames:
+            if variables.watermark_path:
+                camera_frame = apply_watermark(
+                    camera_frame,
+                    variables.watermark_path,
+                    variables.watermark_position,
+                    variables.watermark_opacity,
+                    variables.watermark_scale
+                )
+            variables.video_object.write(camera_frame)
+            variables.frames_written += 1
+        
+        camera_duration = len(camera_frames) / variables.frame_rate
+        print(f"  ⏱️ Camera sequence: {camera_duration:.2f}s ({len(camera_frames)} frames)")
+    else:
+        # Standard final hold behavior
+        # Calculate total frames needed for the specified duration
+        total_frames_needed = int(variables.frame_rate * variables.end_gray_img_duration_in_sec)
+        animation_frames = variables.frames_written
+        remaining_frames = max(0, total_frames_needed - animation_frames)
+        
+        # Display timing information
+        animation_duration = animation_frames / variables.frame_rate
+        final_hold_duration = remaining_frames / variables.frame_rate
+        total_duration = (animation_frames + remaining_frames) / variables.frame_rate
+        
+        print(f"  ⏱️ Animation: {animation_duration:.2f}s ({animation_frames} frames)")
+        print(f"  ⏱️ Final hold: {final_hold_duration:.2f}s ({remaining_frames} frames)")
+        print(f"  ⏱️ Total duration: {total_duration:.2f}s")
+        
+        if animation_frames > total_frames_needed:
+            print(f"  ⚠️ Warning: Animation duration ({animation_duration:.2f}s) exceeds specified duration ({variables.end_gray_img_duration_in_sec}s)")
+        
+        for i in range(remaining_frames):
+            final_frame = variables.drawn_frame.copy()
+            # Appliquer le watermark sur l'image finale uniquement
+            if variables.watermark_path:
+                final_frame = apply_watermark(
+                    final_frame,
+                    variables.watermark_path,
+                    variables.watermark_position,
+                    variables.watermark_opacity,
+                    variables.watermark_scale
+                )
+            variables.video_object.write(final_frame)
+            variables.frames_written += 1
     
     end_time = time.time()
     print(f"  ⏱️ Temps de dessin des couches: {end_time - start_time:.2f} secondes")
@@ -3133,7 +3324,7 @@ def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate
             if layers:
                 # Animation multi-couches
                 draw_layered_whiteboard_animations(
-                    layers, hand_path, hand_mask_path, save_video_path, variables, base_path
+                    layers, hand_path, hand_mask_path, save_video_path, variables, base_path, slide_config
                 )
             else:
                 # Animation simple d'une seule image
