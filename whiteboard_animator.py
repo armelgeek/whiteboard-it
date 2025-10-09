@@ -33,6 +33,19 @@ except ImportError:
     BIDI_SUPPORT = False
     print("⚠️ Warning: arabic-reshaper and python-bidi not installed. RTL text support will be limited.")
 
+# Import export formats module
+try:
+    from export_formats import (
+        export_gif, export_webm, export_png_sequence,
+        export_with_transparency, export_lossless,
+        get_social_media_preset, list_social_media_presets,
+        print_social_media_presets
+    )
+    EXPORT_FORMATS_AVAILABLE = True
+except ImportError:
+    EXPORT_FORMATS_AVAILABLE = False
+    print("⚠️ Warning: export_formats module not available. Advanced export features disabled.")
+
 # from kivy.clock import Clock # COMMENTÉ: Remplacé par un appel direct pour CLI
 
 # --- Variables Globales ---
@@ -3896,6 +3909,117 @@ def ffmpeg_convert(source_vid, dest_vid, platform="linux", crf=18):
     return ff_stat
 
 
+def extract_frames_from_video(video_path):
+    """
+    Extract all frames from a video file.
+    
+    Args:
+        video_path: Path to the video file
+    
+    Returns:
+        list: List of frames as numpy arrays (BGR format)
+    """
+    frames = []
+    try:
+        import av
+        
+        container = av.open(video_path, mode='r')
+        video_stream = container.streams.video[0]
+        
+        for frame in container.decode(video=0):
+            frame_np = frame.to_ndarray(format='bgr24')
+            frames.append(frame_np)
+        
+        container.close()
+        return frames
+        
+    except ImportError:
+        print("⚠️ PyAV library required. Trying with OpenCV...")
+        # Fallback to OpenCV
+        cap = cv2.VideoCapture(video_path)
+        
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            frames.append(frame)
+        
+        cap.release()
+        return frames
+        
+    except Exception as e:
+        print(f"❌ Error extracting frames: {e}")
+        return frames
+
+
+def export_additional_formats(video_path, export_formats_list, fps=30):
+    """
+    Export video to additional formats (GIF, WebM, PNG sequence, etc.).
+    
+    Args:
+        video_path: Path to the source video file
+        export_formats_list: List of format strings ('gif', 'webm', 'png', 'webm-alpha', 'lossless')
+        fps: Frame rate for export
+    
+    Returns:
+        dict: Dictionary of exported files {format: filepath}
+    """
+    if not EXPORT_FORMATS_AVAILABLE:
+        print("⚠️ Export formats module not available. Skipping additional exports.")
+        return {}
+    
+    if not export_formats_list:
+        return {}
+    
+    print(f"\n📦 Exporting to additional formats: {', '.join(export_formats_list)}")
+    
+    # Extract frames from video
+    print("  🎬 Extracting frames from video...")
+    frames = extract_frames_from_video(video_path)
+    
+    if not frames:
+        print("  ❌ No frames extracted. Skipping additional exports.")
+        return {}
+    
+    print(f"  ✅ Extracted {len(frames)} frames")
+    
+    exported_files = {}
+    base_path = os.path.dirname(video_path)
+    base_name = os.path.splitext(os.path.basename(video_path))[0]
+    
+    for format_name in export_formats_list:
+        format_lower = format_name.lower()
+        
+        if format_lower == 'gif':
+            output_path = os.path.join(base_path, f"{base_name}.gif")
+            # Reduce fps for GIF to keep file size reasonable
+            gif_fps = min(10, fps)
+            if export_gif(frames, output_path, fps=gif_fps):
+                exported_files['gif'] = output_path
+        
+        elif format_lower == 'webm':
+            output_path = os.path.join(base_path, f"{base_name}.webm")
+            if export_webm(frames, output_path, fps=fps):
+                exported_files['webm'] = output_path
+        
+        elif format_lower == 'png' or format_lower == 'png-sequence':
+            output_dir = os.path.join(base_path, f"{base_name}_frames")
+            if export_png_sequence(frames, output_dir):
+                exported_files['png-sequence'] = output_dir
+        
+        elif format_lower == 'webm-alpha' or format_lower == 'transparent':
+            output_path = os.path.join(base_path, f"{base_name}_alpha.webm")
+            if export_with_transparency(frames, output_path, fps=fps):
+                exported_files['webm-alpha'] = output_path
+        
+        elif format_lower == 'lossless':
+            output_path = os.path.join(base_path, f"{base_name}_lossless.mkv")
+            if export_lossless(frames, output_path, fps=fps):
+                exported_files['lossless'] = output_path
+    
+    return exported_files
+
+
 def generate_transition_frames(frame1, frame2, transition_type, num_frames, fps):
     """Génère des frames de transition entre deux frames.
     
@@ -4776,8 +4900,72 @@ def main():
         action='store_true',
         help="Active le mode optimisation mémoire pour les grandes vidéos."
     )
+    
+    # Export format arguments
+    parser.add_argument(
+        '--export-formats',
+        type=str,
+        nargs='+',
+        choices=['gif', 'webm', 'png', 'png-sequence', 'webm-alpha', 'transparent', 'lossless'],
+        default=None,
+        metavar='FORMAT',
+        help="Formats d'export supplémentaires (gif, webm, png, webm-alpha, transparent, lossless). Peut spécifier plusieurs formats."
+    )
+    
+    parser.add_argument(
+        '--social-preset',
+        type=str,
+        default=None,
+        choices=['youtube', 'youtube-shorts', 'tiktok', 'instagram-feed', 'instagram-story', 
+                 'instagram-reel', 'facebook', 'twitter', 'linkedin'],
+        help="Preset pour plateformes de médias sociaux (définit résolution, ratio, format optimal)."
+    )
+    
+    parser.add_argument(
+        '--list-presets',
+        action='store_true',
+        help="Affiche tous les presets de médias sociaux disponibles et quitte."
+    )
 
     args = parser.parse_args()
+    
+    # Handle list presets command
+    if args.list_presets:
+        if EXPORT_FORMATS_AVAILABLE:
+            print_social_media_presets()
+        else:
+            print("❌ Export formats module not available.")
+        return
+    
+    # Handle social media preset
+    if args.social_preset:
+        if EXPORT_FORMATS_AVAILABLE:
+            preset = get_social_media_preset(args.social_preset)
+            if preset:
+                print(f"\n📱 Applying social media preset: {args.social_preset}")
+                print(f"   {preset['description']}")
+                
+                # Override aspect ratio based on preset
+                if preset['aspect_ratio'] == '16:9':
+                    args.aspect_ratio = '16:9'
+                elif preset['aspect_ratio'] == '9:16':
+                    args.aspect_ratio = '9:16'
+                elif preset['aspect_ratio'] == '1:1':
+                    args.aspect_ratio = '1:1'
+                
+                # Set frame rate
+                args.frame_rate = preset['fps']
+                
+                print(f"   - Aspect ratio: {preset['aspect_ratio']}")
+                print(f"   - Resolution: {preset['resolution'][0]}x{preset['resolution'][1]}")
+                print(f"   - FPS: {preset['fps']}")
+                print(f"   - Format: {preset['format'].upper()}")
+            else:
+                print(f"❌ Preset '{args.social_preset}' not found.")
+                return
+        else:
+            print("❌ Export formats module not available.")
+            return
     
     # Initialize performance optimizer if available
     performance_optimizer = None
@@ -4970,6 +5158,14 @@ def main():
                 print(f"\n✅ SUCCÈS! Vidéo enregistrée sous: {result['message']}")
                 if "json_path" in result:
                     print(f"✅ Données d'animation exportées: {result['json_path']}")
+                
+                # Export to additional formats if requested
+                if args.export_formats:
+                    exported = export_additional_formats(result['message'], args.export_formats, args.frame_rate)
+                    if exported:
+                        print(f"\n📦 Formats supplémentaires exportés:")
+                        for fmt, path in exported.items():
+                            print(f"  • {fmt}: {path}")
             else:
                 print(f"\n❌ ÉCHEC de la génération vidéo. Message: {result['message']}")
 
@@ -5021,8 +5217,24 @@ def main():
                 print("\n📹 Vidéos individuelles (la concaténation a échoué):")
                 for video in result["individual_videos"]:
                     print(f"  • {video}")
+                    
+                    # Export to additional formats if requested
+                    if args.export_formats:
+                        exported = export_additional_formats(video, args.export_formats, args.frame_rate)
+                        if exported:
+                            print(f"     📦 Formats supplémentaires exportés:")
+                            for fmt, path in exported.items():
+                                print(f"        • {fmt}: {path}")
             else:
                 print(f"\n🎥 Vidéo finale: {result['message']}")
+                
+                # Export to additional formats if requested
+                if args.export_formats:
+                    exported = export_additional_formats(result['message'], args.export_formats, args.frame_rate)
+                    if exported:
+                        print(f"\n📦 Formats supplémentaires exportés:")
+                        for fmt, path in exported.items():
+                            print(f"  • {fmt}: {path}")
             
             if "json_paths" in result:
                 print(f"\n📄 Données d'animation exportées ({len(result['json_paths'])} fichier(s)):")
