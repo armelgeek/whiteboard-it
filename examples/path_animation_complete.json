@@ -1,0 +1,52 @@
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 15,
+      "layers": [
+        {
+          "image_path": "demo/1.jpg",
+          "position": {"x": 0, "y": 0},
+          "z_index": 1,
+          "skip_rate": 10,
+          "mode": "draw"
+        },
+        {
+          "comment": "Object follows a curved path with progressive path drawing",
+          "image_path": "demo/2.jpg",
+          "position": {"x": 0, "y": 0},
+          "z_index": 2,
+          "scale": 0.2,
+          "mode": "static",
+          "path_animation": {
+            "enabled": true,
+            "type": "bezier_cubic",
+            "duration": 3.0,
+            "points": [[100, 400], [300, 200], [500, 300], [700, 100]],
+            "speed_profile": "ease_in",
+            "orient_to_path": true,
+            "draw_path": true,
+            "path_color": [0, 255, 0],
+            "path_thickness": 2
+          }
+        },
+        {
+          "comment": "Second object with different speed profile",
+          "image_path": "demo/3.png",
+          "position": {"x": 0, "y": 0},
+          "z_index": 3,
+          "scale": 0.15,
+          "mode": "static",
+          "path_animation": {
+            "enabled": true,
+            "type": "bezier_quadratic",
+            "duration": 2.5,
+            "points": [[700, 400], [400, 100], [100, 350]],
+            "speed_profile": "ease_out",
+            "orient_to_path": false
+          }
+        }
+      ]
+    }
+  ]
+}

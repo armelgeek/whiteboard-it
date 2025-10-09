@@ -93,12 +93,15 @@ Le système Whiteboard-It est **actuellement complet à 48%** en termes de fonct
 
 **Effort:** 5-7 jours | **Impact:** ⭐⭐⭐
 
-### 8. 🛤️ Animation de Chemins (0% implémenté)
-- Trajectoires courbes Bézier
-- Objets suivant un chemin
-- Contrôle de vitesse sur trajectoire
+### 8. 🛤️ Animation de Chemins (100% implémenté) ✅
+- ✅ Trajectoires courbes Bézier (cubic et quadratic)
+- ✅ Objets suivant un chemin
+- ✅ Contrôle de vitesse sur trajectoire (ease_in, ease_out, ease_in_out)
+- ✅ Mouvement le long d'une spline (Catmull-Rom)
+- ✅ Dessin progressif du chemin
+- ✅ Orientation selon trajectoire
 
-**Effort:** 6-8 jours | **Impact:** ⭐⭐⭐⭐
+**Statut:** COMPLET | **Impact:** ⭐⭐⭐⭐
 
 ### 9. 📦 Gestion d'Assets (20% implémenté)
 - Bibliothèque d'assets

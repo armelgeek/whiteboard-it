@@ -1,0 +1,38 @@
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 12,
+      "layers": [
+        {
+          "image_path": "demo/1.jpg",
+          "position": {"x": 0, "y": 0},
+          "z_index": 1,
+          "skip_rate": 10,
+          "mode": "draw"
+        },
+        {
+          "image_path": "demo/2.jpg",
+          "position": {"x": 0, "y": 0},
+          "z_index": 2,
+          "scale": 0.25,
+          "mode": "static",
+          "path_animation": {
+            "enabled": true,
+            "type": "spline",
+            "duration": 5.0,
+            "points": [
+              [100, 300],
+              [200, 150],
+              [400, 200],
+              [600, 100],
+              [700, 350]
+            ],
+            "speed_profile": "linear",
+            "orient_to_path": true
+          }
+        }
+      ]
+    }
+  ]
+}
