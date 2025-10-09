@@ -1,0 +1,23 @@
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 8,
+      "layers": [
+        {
+          "image_path": "demo/1.jpg",
+          "position": {"x": 0, "y": 0},
+          "z_index": 1,
+          "skip_rate": 10,
+          "mode": "draw",
+          "particle_effect": {
+            "type": "confetti",
+            "position": [360, 100],
+            "duration": 3.0,
+            "burst_count": 150
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 8,
+      "layers": [
+        {
+          "image_path": "demo/3.png",
+          "position": {"x": 0, "y": 0},
+          "z_index": 1,
+          "skip_rate": 10,
+          "mode": "draw",
+          "particle_effect": {
+            "type": "explosion",
+            "position": [360, 320],
+            "duration": 2.0,
+            "particle_count": 80
+          }
+        }
+      ]
+    }
+  ]
+}
