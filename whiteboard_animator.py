@@ -1679,6 +1679,309 @@ def generate_morph_frames(frame1, frame2, num_frames):
     return morph_frames
 
 
+def evaluate_bezier_cubic(p0, p1, p2, p3, t):
+    """Evaluate a cubic Bezier curve at parameter t.
+    
+    Args:
+        p0, p1, p2, p3: Control points as (x, y) tuples
+        t: Parameter from 0 to 1
+        
+    Returns:
+        (x, y) point on the curve
+    """
+    t2 = t * t
+    t3 = t2 * t
+    mt = 1 - t
+    mt2 = mt * mt
+    mt3 = mt2 * mt
+    
+    x = mt3 * p0[0] + 3 * mt2 * t * p1[0] + 3 * mt * t2 * p2[0] + t3 * p3[0]
+    y = mt3 * p0[1] + 3 * mt2 * t * p1[1] + 3 * mt * t2 * p2[1] + t3 * p3[1]
+    
+    return (x, y)
+
+
+def evaluate_bezier_quadratic(p0, p1, p2, t):
+    """Evaluate a quadratic Bezier curve at parameter t.
+    
+    Args:
+        p0, p1, p2: Control points as (x, y) tuples
+        t: Parameter from 0 to 1
+        
+    Returns:
+        (x, y) point on the curve
+    """
+    mt = 1 - t
+    mt2 = mt * mt
+    t2 = t * t
+    
+    x = mt2 * p0[0] + 2 * mt * t * p1[0] + t2 * p2[0]
+    y = mt2 * p0[1] + 2 * mt * t * p1[1] + t2 * p2[1]
+    
+    return (x, y)
+
+
+def evaluate_path_at_time(path_config, t):
+    """Evaluate a path at normalized time t (0 to 1).
+    
+    Args:
+        path_config: Dictionary containing path configuration:
+            - type: "bezier_cubic", "bezier_quadratic", "linear", or "spline"
+            - points: List of control points [(x1, y1), (x2, y2), ...]
+            - For bezier_cubic: needs 4 points (or multiples of 3 after first)
+            - For bezier_quadratic: needs 3 points (or multiples of 2 after first)
+            - For linear: needs 2+ points
+            - For spline: needs 4+ points (uses cubic interpolation)
+        t: Time parameter from 0 to 1
+        
+    Returns:
+        (x, y, angle) tuple - position and tangent angle in degrees
+    """
+    path_type = path_config.get('type', 'linear')
+    points = path_config.get('points', [])
+    
+    if len(points) < 2:
+        return (0, 0, 0)
+    
+    if path_type == 'linear':
+        # Simple linear interpolation between points
+        if len(points) == 2:
+            p0, p1 = points[0], points[1]
+            x = p0[0] + t * (p1[0] - p0[0])
+            y = p0[1] + t * (p1[1] - p0[1])
+            angle = math.degrees(math.atan2(p1[1] - p0[1], p1[0] - p0[0]))
+            return (x, y, angle)
+        else:
+            # Multiple segments - find which segment t falls into
+            num_segments = len(points) - 1
+            segment_length = 1.0 / num_segments
+            segment_idx = min(int(t / segment_length), num_segments - 1)
+            local_t = (t - segment_idx * segment_length) / segment_length
+            
+            p0 = points[segment_idx]
+            p1 = points[segment_idx + 1]
+            x = p0[0] + local_t * (p1[0] - p0[0])
+            y = p0[1] + local_t * (p1[1] - p0[1])
+            angle = math.degrees(math.atan2(p1[1] - p0[1], p1[0] - p0[0]))
+            return (x, y, angle)
+    
+    elif path_type == 'bezier_cubic':
+        # Cubic Bezier curve
+        if len(points) >= 4:
+            # Use first 4 points for single curve
+            # For multiple curves, we'd need to segment t appropriately
+            p0, p1, p2, p3 = points[:4]
+            pos = evaluate_bezier_cubic(p0, p1, p2, p3, t)
+            
+            # Calculate tangent for angle (derivative of bezier)
+            # Tangent at t: 3(1-t)²(p1-p0) + 6(1-t)t(p2-p1) + 3t²(p3-p2)
+            mt = 1 - t
+            dx = 3 * mt * mt * (p1[0] - p0[0]) + 6 * mt * t * (p2[0] - p1[0]) + 3 * t * t * (p3[0] - p2[0])
+            dy = 3 * mt * mt * (p1[1] - p0[1]) + 6 * mt * t * (p2[1] - p1[1]) + 3 * t * t * (p3[1] - p2[1])
+            angle = math.degrees(math.atan2(dy, dx))
+            
+            return (pos[0], pos[1], angle)
+    
+    elif path_type == 'bezier_quadratic':
+        # Quadratic Bezier curve
+        if len(points) >= 3:
+            p0, p1, p2 = points[:3]
+            pos = evaluate_bezier_quadratic(p0, p1, p2, t)
+            
+            # Calculate tangent for angle
+            # Tangent at t: 2(1-t)(p1-p0) + 2t(p2-p1)
+            mt = 1 - t
+            dx = 2 * mt * (p1[0] - p0[0]) + 2 * t * (p2[0] - p1[0])
+            dy = 2 * mt * (p1[1] - p0[1]) + 2 * t * (p2[1] - p1[1])
+            angle = math.degrees(math.atan2(dy, dx))
+            
+            return (pos[0], pos[1], angle)
+    
+    elif path_type == 'spline':
+        # Catmull-Rom spline interpolation
+        if len(points) >= 4:
+            # Find which segment we're on
+            num_segments = len(points) - 3
+            segment_length = 1.0 / num_segments
+            segment_idx = min(int(t / segment_length), num_segments - 1)
+            local_t = (t - segment_idx * segment_length) / segment_length
+            
+            # Get 4 control points for this segment
+            p0 = points[segment_idx]
+            p1 = points[segment_idx + 1]
+            p2 = points[segment_idx + 2]
+            p3 = points[segment_idx + 3]
+            
+            # Catmull-Rom spline formula
+            t2 = local_t * local_t
+            t3 = t2 * local_t
+            
+            x = 0.5 * ((2 * p1[0]) +
+                      (-p0[0] + p2[0]) * local_t +
+                      (2*p0[0] - 5*p1[0] + 4*p2[0] - p3[0]) * t2 +
+                      (-p0[0] + 3*p1[0] - 3*p2[0] + p3[0]) * t3)
+            
+            y = 0.5 * ((2 * p1[1]) +
+                      (-p0[1] + p2[1]) * local_t +
+                      (2*p0[1] - 5*p1[1] + 4*p2[1] - p3[1]) * t2 +
+                      (-p0[1] + 3*p1[1] - 3*p2[1] + p3[1]) * t3)
+            
+            # Calculate tangent
+            dx = 0.5 * ((-p0[0] + p2[0]) +
+                       2 * (2*p0[0] - 5*p1[0] + 4*p2[0] - p3[0]) * local_t +
+                       3 * (-p0[0] + 3*p1[0] - 3*p2[0] + p3[0]) * t2)
+            
+            dy = 0.5 * ((-p0[1] + p2[1]) +
+                       2 * (2*p0[1] - 5*p1[1] + 4*p2[1] - p3[1]) * local_t +
+                       3 * (-p0[1] + 3*p1[1] - 3*p2[1] + p3[1]) * t2)
+            
+            angle = math.degrees(math.atan2(dy, dx))
+            return (x, y, angle)
+    
+    # Fallback: return first point
+    return (points[0][0], points[0][1], 0)
+
+
+def apply_speed_curve(t, speed_profile='linear'):
+    """Apply a speed curve to the time parameter.
+    
+    Args:
+        t: Time parameter from 0 to 1
+        speed_profile: Type of speed curve
+            - 'linear': constant speed
+            - 'ease_in': slow start
+            - 'ease_out': slow end
+            - 'ease_in_out': slow start and end
+            
+    Returns:
+        Modified time parameter
+    """
+    if speed_profile == 'ease_in':
+        return t * t
+    elif speed_profile == 'ease_out':
+        return 1 - (1 - t) * (1 - t)
+    elif speed_profile == 'ease_in_out':
+        if t < 0.5:
+            return 2 * t * t
+        else:
+            return 1 - 2 * (1 - t) * (1 - t)
+    else:  # linear
+        return t
+
+
+def draw_path_progressive(frame, path_config, progress, color=(0, 0, 0), thickness=2):
+    """Draw a path progressively from start to current progress.
+    
+    Args:
+        frame: Frame to draw on
+        path_config: Path configuration dictionary
+        progress: How much of the path to draw (0 to 1)
+        color: Line color (BGR tuple)
+        thickness: Line thickness
+        
+    Returns:
+        Frame with path drawn
+    """
+    result = frame.copy()
+    
+    if progress <= 0:
+        return result
+    
+    # Sample points along the path
+    num_samples = 100
+    points = []
+    for i in range(int(num_samples * progress) + 1):
+        t = i / num_samples
+        if t > progress:
+            t = progress
+        x, y, _ = evaluate_path_at_time(path_config, t)
+        points.append((int(x), int(y)))
+    
+    # Draw lines between consecutive points
+    for i in range(len(points) - 1):
+        cv2.line(result, points[i], points[i + 1], color, thickness)
+    
+    return result
+
+
+def apply_path_animation(layer_img, path_config, frame_index, total_frames, orient_to_path=False):
+    """Apply path animation to move and optionally rotate an object along a path.
+    
+    Args:
+        layer_img: The layer image to animate
+        path_config: Path configuration dictionary with:
+            - type: path type (bezier_cubic, bezier_quadratic, linear, spline)
+            - points: list of control points
+            - speed_profile: optional speed curve ('linear', 'ease_in', 'ease_out', 'ease_in_out')
+        frame_index: Current frame index
+        total_frames: Total frames in animation
+        orient_to_path: Whether to rotate object to face path direction
+        
+    Returns:
+        Positioned and optionally rotated frame
+    """
+    h, w = layer_img.shape[:2]
+    
+    # Calculate progress
+    t = frame_index / max(total_frames - 1, 1)
+    
+    # Apply speed curve if specified
+    speed_profile = path_config.get('speed_profile', 'linear')
+    t = apply_speed_curve(t, speed_profile)
+    
+    # Get position and angle on path
+    x, y, angle = evaluate_path_at_time(path_config, t)
+    
+    # Create white canvas
+    result = np.ones((h, w, 3), dtype=np.uint8) * 255
+    
+    # Get layer dimensions
+    layer_h, layer_w = layer_img.shape[:2]
+    
+    # Calculate center offset
+    center_x = int(x)
+    center_y = int(y)
+    
+    # Apply rotation if orient_to_path is enabled
+    if orient_to_path:
+        # Get rotation matrix
+        rotation_center = (layer_w // 2, layer_h // 2)
+        rotation_matrix = cv2.getRotationMatrix2D(rotation_center, -angle, 1.0)
+        
+        # Rotate the layer
+        rotated_layer = cv2.warpAffine(layer_img, rotation_matrix, (layer_w, layer_h),
+                                       borderMode=cv2.BORDER_CONSTANT,
+                                       borderValue=(255, 255, 255))
+    else:
+        rotated_layer = layer_img
+    
+    # Calculate position to place the layer (centered at path point)
+    start_x = center_x - layer_w // 2
+    start_y = center_y - layer_h // 2
+    
+    # Clip to bounds and place layer
+    if 0 <= start_x < w and 0 <= start_y < h:
+        end_x = min(start_x + layer_w, w)
+        end_y = min(start_y + layer_h, h)
+        
+        if start_x >= 0 and start_y >= 0:
+            src_start_x = max(0, -start_x)
+            src_start_y = max(0, -start_y)
+            src_end_x = src_start_x + (end_x - max(0, start_x))
+            src_end_y = src_start_y + (end_y - max(0, start_y))
+            
+            dst_start_x = max(0, start_x)
+            dst_start_y = max(0, start_y)
+            
+            # Only copy non-white pixels
+            layer_region = rotated_layer[src_start_y:src_end_y, src_start_x:src_end_x]
+            mask = np.any(layer_region < 250, axis=2)
+            
+            result[dst_start_y:end_y, dst_start_x:end_x][mask] = layer_region[mask]
+    
+    return result
+
+
 def draw_character_by_character_text(
     variables, skip_rate=5, mode='draw',
     eraser=None, eraser_mask_inv=None, eraser_ht=0, eraser_wd=0,
@@ -2614,6 +2917,7 @@ def draw_layered_whiteboard_animations(
             entrance_anim = layer.get('entrance_animation', None)
             exit_anim = layer.get('exit_animation', None)
             morph_config = layer.get('morph', None)
+            path_anim = layer.get('path_animation', None)
             
             # Check if we need to morph from previous layer
             if layer_idx > 0 and morph_config and morph_config.get('enabled', False):
@@ -2834,6 +3138,70 @@ def draw_layered_whiteboard_animations(
                         )
                     variables.video_object.write(anim_frame)
                     variables.frames_written += 1
+            
+            # Apply path animation if configured
+            if path_anim and path_anim.get('enabled', False):
+                path_duration = path_anim.get('duration', 2.0)
+                path_frames = int(path_duration * variables.frame_rate)
+                orient_to_path = path_anim.get('orient_to_path', False)
+                draw_path = path_anim.get('draw_path', False)
+                path_color = path_anim.get('path_color', [0, 0, 0])  # BGR
+                path_thickness = path_anim.get('path_thickness', 2)
+                
+                print(f"    🛤️  Path animation: {path_anim.get('type', 'linear')} " +
+                      f"({path_frames} frames, orient={orient_to_path}, draw_path={draw_path})")
+                
+                # Generate path animation frames
+                for frame_idx in range(path_frames):
+                    # Start with current state
+                    anim_frame = variables.drawn_frame.copy()
+                    
+                    # Optionally draw the path progressively
+                    if draw_path:
+                        progress = frame_idx / max(path_frames - 1, 1)
+                        anim_frame = draw_path_progressive(
+                            anim_frame, 
+                            path_anim, 
+                            progress,
+                            tuple(path_color),
+                            path_thickness
+                        )
+                    
+                    # Apply path animation to move/rotate the layer
+                    layer_on_path = apply_path_animation(
+                        layer_vars.drawn_frame,
+                        path_anim,
+                        frame_idx,
+                        path_frames,
+                        orient_to_path
+                    )
+                    
+                    # Create mask for layer on path
+                    path_layer_mask = np.any(layer_on_path < 250, axis=2).astype(np.float32)
+                    path_layer_mask_3d = np.stack([path_layer_mask] * 3, axis=2)
+                    
+                    # Blend layer on path with current frame
+                    if opacity < 1.0:
+                        layer_content = layer_on_path * path_layer_mask_3d
+                        old_background = anim_frame * path_layer_mask_3d
+                        blended_layer = cv2.addWeighted(old_background, 1 - opacity, layer_content, opacity, 0)
+                        anim_frame = (path_layer_mask_3d * blended_layer + 
+                                     (1 - path_layer_mask_3d) * anim_frame).astype(np.uint8)
+                    else:
+                        anim_frame = np.where(path_layer_mask_3d > 0, layer_on_path, anim_frame).astype(np.uint8)
+                    
+                    # Apply watermark and write frame
+                    if variables.watermark_path:
+                        anim_frame = apply_watermark(
+                            anim_frame, variables.watermark_path,
+                            variables.watermark_position, variables.watermark_opacity,
+                            variables.watermark_scale
+                        )
+                    variables.video_object.write(anim_frame)
+                    variables.frames_written += 1
+                
+                # Update drawn_frame to final position
+                variables.drawn_frame = anim_frame.copy()
             
             # Final blend of layer (no entrance animation or after animation completes)
             if opacity < 1.0:
