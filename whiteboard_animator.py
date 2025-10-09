@@ -430,8 +430,10 @@ def render_shape_to_image(shape_config, target_width, target_height):
     # Render shape based on type
     if shape_type == 'circle':
         radius = int(size)
-        if fill_color:
+        # Only draw fill if fill_color is explicitly provided
+        if fill_color is not None:
             cv2.circle(img, center, radius, fill_color, -1)
+        # Always draw the outline/border
         cv2.circle(img, center, radius, color, stroke_width)
     
     elif shape_type == 'rectangle':
@@ -481,9 +483,6 @@ def render_shape_to_image(shape_config, target_width, target_height):
         pt1 = (int(start[0]), int(start[1]))
         pt2 = (int(end[0]), int(end[1]))
         
-        # Draw main line
-        cv2.line(img, pt1, pt2, color, stroke_width)
-        
         # Calculate arrow head
         angle = np.arctan2(end[1] - start[1], end[0] - start[0])
         arrow_angle = np.pi / 6  # 30 degrees
@@ -498,15 +497,16 @@ def render_shape_to_image(shape_config, target_width, target_height):
             int(pt2[1] - arrow_size * np.sin(angle + arrow_angle))
         )
         
-        # Draw arrow head
-        cv2.line(img, pt2, p1, color, stroke_width)
-        cv2.line(img, pt2, p2, color, stroke_width)
-        
-        # Optionally fill arrow head
+        # Draw arrow head FIRST (before shaft)
         if fill_color:
             arrow_pts = np.array([pt2, p1, p2], np.int32)
             arrow_pts = arrow_pts.reshape((-1, 1, 2))
             cv2.fillPoly(img, [arrow_pts], fill_color)
+        cv2.line(img, pt2, p1, color, stroke_width)
+        cv2.line(img, pt2, p2, color, stroke_width)
+        
+        # Draw main line (shaft) AFTER head
+        cv2.line(img, pt1, pt2, color, stroke_width)
     
     return img
 
@@ -2997,6 +2997,11 @@ def draw_layered_whiteboard_animations(
                         )
                     variables.video_object.write(morph_frame)
                     variables.frames_written += 1
+                
+                # Update drawn_frame to the final morphed state
+                # This ensures the previous layer is fully transitioned and replaced
+                if morph_frames:
+                    variables.drawn_frame = morph_frames[-1].copy()
             
             # Entrance animation
             entrance_frames = 0
@@ -3019,29 +3024,10 @@ def draw_layered_whiteboard_animations(
                     text_config = layer.get('text_config', {})
                     text_animation_type = text_config.get('animation_type', 'handwriting')
                     
-                    if text_animation_type == 'character_by_character':
-                        draw_character_by_character_text(
-                            variables=layer_vars,
-                            skip_rate=layer_skip_rate,
-                            mode='eraser',
-                            eraser=eraser,
-                            eraser_mask_inv=eraser_mask_inv,
-                            eraser_ht=eraser_ht,
-                            eraser_wd=eraser_wd,
-                            text_config=text_config
-                        )
-                    elif text_animation_type == 'word_by_word':
-                        draw_word_by_word_text(
-                            variables=layer_vars,
-                            skip_rate=layer_skip_rate,
-                            mode='eraser',
-                            eraser=eraser,
-                            eraser_mask_inv=eraser_mask_inv,
-                            eraser_ht=eraser_ht,
-                            eraser_wd=eraser_wd,
-                            text_config=text_config
-                        )
-                    elif text_animation_type == 'svg_path' or text_config.get('use_svg_paths', False):
+                    # Removed: character_by_character and word_by_word animation types
+                    # Now only support svg_path and default handwriting
+                    
+                    if text_animation_type == 'svg_path' or text_config.get('use_svg_paths', False):
                         draw_svg_path_handwriting(
                             variables=layer_vars,
                             skip_rate=layer_skip_rate,
@@ -3082,23 +3068,10 @@ def draw_layered_whiteboard_animations(
                     # Check animation type for text
                     text_animation_type = text_config.get('animation_type', 'handwriting')
                     
-                    if text_animation_type == 'character_by_character':
-                        print(f"    ✍️  Mode character-by-character (text)")
-                        draw_character_by_character_text(
-                            variables=layer_vars,
-                            skip_rate=layer_skip_rate,
-                            mode='draw',
-                            text_config=text_config
-                        )
-                    elif text_animation_type == 'word_by_word':
-                        print(f"    ✍️  Mode word-by-word (text)")
-                        draw_word_by_word_text(
-                            variables=layer_vars,
-                            skip_rate=layer_skip_rate,
-                            mode='draw',
-                            text_config=text_config
-                        )
-                    elif text_animation_type == 'svg_path' or text_config.get('use_svg_paths', False):
+                    # Removed: character_by_character and word_by_word animation types
+                    # Now only support svg_path and default handwriting
+                    
+                    if text_animation_type == 'svg_path' or text_config.get('use_svg_paths', False):
                         print(f"    ✍️  Mode handwriting (SVG path-based)")
                         # Use SVG path-based drawing (opt-in)
                         draw_svg_path_handwriting(

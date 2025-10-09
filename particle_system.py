@@ -236,57 +236,69 @@ class ParticleEmitter:
             self._render_triangle(frame, x, y, particle, alpha)
     
     def _render_circle(self, frame, x, y, particle, alpha):
-        """Render a circular particle."""
+        """Render a circular particle in doodle style (outline only)."""
         radius = int(particle.size)
         if radius < 1:
             radius = 1
         
+        # Doodle style: black outline only, no fill
+        thickness = max(1, int(particle.size / 4))
+        
         # Create overlay for alpha blending
         overlay = frame.copy()
-        cv2.circle(overlay, (x, y), radius, particle.color, -1)
+        cv2.circle(overlay, (x, y), radius, (0, 0, 0), thickness)
         
         # Blend with alpha
         cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
     
     def _render_square(self, frame, x, y, particle, alpha):
-        """Render a square particle."""
+        """Render a square particle in doodle style (outline only)."""
         half_size = int(particle.size)
         
         # Calculate rotated corners
         corners = self._get_rotated_square(x, y, half_size, particle.rotation)
         
+        # Doodle style: black outline only, no fill
+        thickness = max(1, int(particle.size / 4))
+        
         # Create overlay
         overlay = frame.copy()
-        cv2.fillPoly(overlay, [corners], particle.color)
+        cv2.polylines(overlay, [corners], True, (0, 0, 0), thickness)
         
         # Blend with alpha
         cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
     
     def _render_star(self, frame, x, y, particle, alpha):
-        """Render a star particle."""
+        """Render a star particle in doodle style (outline only)."""
         outer_radius = int(particle.size)
         inner_radius = int(particle.size * 0.4)
         
         # Calculate star points
         points = self._get_star_points(x, y, outer_radius, inner_radius, particle.rotation)
         
+        # Doodle style: black outline only, no fill
+        thickness = max(1, int(particle.size / 4))
+        
         # Create overlay
         overlay = frame.copy()
-        cv2.fillPoly(overlay, [points], particle.color)
+        cv2.polylines(overlay, [points], True, (0, 0, 0), thickness)
         
         # Blend with alpha
         cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
     
     def _render_triangle(self, frame, x, y, particle, alpha):
-        """Render a triangle particle."""
+        """Render a triangle particle in doodle style (outline only)."""
         size = int(particle.size)
         
         # Calculate rotated triangle points
         points = self._get_rotated_triangle(x, y, size, particle.rotation)
         
+        # Doodle style: black outline only, no fill
+        thickness = max(1, int(particle.size / 4))
+        
         # Create overlay
         overlay = frame.copy()
-        cv2.fillPoly(overlay, [points], particle.color)
+        cv2.polylines(overlay, [points], True, (0, 0, 0), thickness)
         
         # Blend with alpha
         cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
@@ -394,16 +406,11 @@ class ParticleSystem:
         """
         system = ParticleSystem()
         
-        # Colorful confetti colors
+        # Doodle style: black and white only
         colors = [
-            (0, 0, 255),    # Red
-            (0, 255, 0),    # Green
-            (255, 0, 0),    # Blue
-            (0, 255, 255),  # Yellow
-            (255, 0, 255),  # Magenta
-            (255, 255, 0),  # Cyan
-            (128, 0, 255),  # Orange
-            (255, 0, 128),  # Purple
+            (0, 0, 0),      # Black
+            (50, 50, 50),   # Dark gray
+            (100, 100, 100) # Gray
         ]
         
         emitter = ParticleEmitter(
@@ -443,11 +450,10 @@ class ParticleSystem:
         """
         system = ParticleSystem()
         
-        # Bright sparkle colors
+        # Doodle style: black and white only
         colors = [
-            (255, 255, 255),  # White
-            (200, 255, 255),  # Light yellow
-            (255, 200, 255),  # Light pink
+            (0, 0, 0),      # Black
+            (50, 50, 50),   # Dark gray
         ]
         
         emitter = ParticleEmitter(
@@ -485,12 +491,11 @@ class ParticleSystem:
         """
         system = ParticleSystem()
         
-        # Gray/white smoke colors
+        # Doodle style: black and white only
         colors = [
-            (200, 200, 200),
-            (180, 180, 180),
-            (160, 160, 160),
-            (140, 140, 140),
+            (100, 100, 100),  # Gray
+            (80, 80, 80),     # Dark gray
+            (60, 60, 60),     # Darker gray
         ]
         
         emitter = ParticleEmitter(
@@ -526,12 +531,11 @@ class ParticleSystem:
         """
         system = ParticleSystem()
         
-        # Fire colors
+        # Doodle style: black and white only
         colors = [
-            (0, 69, 255),   # Orange-red
-            (0, 140, 255),  # Orange
-            (0, 215, 255),  # Gold
-            (0, 255, 255),  # Yellow
+            (0, 0, 0),      # Black
+            (30, 30, 30),   # Very dark gray
+            (60, 60, 60),   # Dark gray
         ]
         
         emitter = ParticleEmitter(
@@ -571,12 +575,10 @@ class ParticleSystem:
         """
         system = ParticleSystem()
         
-        # Magical colors
+        # Doodle style: black and white only
         colors = [
-            (255, 255, 100),  # Light blue
-            (255, 100, 255),  # Light pink
-            (100, 255, 255),  # Light yellow
-            (200, 255, 200),  # Light green
+            (0, 0, 0),      # Black
+            (50, 50, 50),   # Dark gray
         ]
         
         emitter = ParticleEmitter(
