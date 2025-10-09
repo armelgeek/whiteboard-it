@@ -1,0 +1,80 @@
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 20,
+      "layers": [
+        {
+          "image_path": "demo/1.jpg",
+          "position": {"x": 0, "y": 0},
+          "z_index": 1,
+          "skip_rate": 10
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "duration": 20.0,
+    "frame_rate": 30,
+    "property_tracks": {
+      "layer.0.position": {
+        "keyframes": [
+          {"time": 0.0, "value": {"x": 0, "y": 0}, "interpolation": "ease_out"},
+          {"time": 2.0, "value": {"x": 100, "y": 0}, "interpolation": "ease_in"},
+          {"time": 4.0, "value": {"x": 0, "y": 0}, "interpolation": "linear"}
+        ]
+      }
+    },
+    "loop_segments": [
+      {
+        "start_time": 0.0,
+        "end_time": 4.0,
+        "loop_count": 3,
+        "label": "Bouncing animation loop"
+      }
+    ],
+    "time_remappings": [
+      {
+        "original_start": 12.0,
+        "original_end": 14.0,
+        "remapped_start": 12.0,
+        "remapped_end": 18.0,
+        "curve": "ease_in_out"
+      }
+    ],
+    "markers": [
+      {
+        "time": 0.0,
+        "label": "Loop Start",
+        "color": "#00FF00"
+      },
+      {
+        "time": 4.0,
+        "label": "Loop End (will repeat 3x)",
+        "color": "#FFFF00"
+      },
+      {
+        "time": 12.0,
+        "label": "Slow Motion Start",
+        "color": "#FF9900"
+      },
+      {
+        "time": 14.0,
+        "label": "Original time 14s",
+        "color": "#FF6600"
+      },
+      {
+        "time": 18.0,
+        "label": "Slow Motion End",
+        "color": "#FF0000"
+      }
+    ],
+    "sync_points": [
+      {
+        "time": 12.0,
+        "elements": ["layer.0"],
+        "label": "Slow motion effect begins"
+      }
+    ]
+  }
+}
