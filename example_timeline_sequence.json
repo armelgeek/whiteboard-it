@@ -1,0 +1,159 @@
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 15,
+      "layers": [
+        {
+          "image_path": "demo/1.jpg",
+          "position": {"x": 0, "y": 0},
+          "z_index": 1,
+          "skip_rate": 10
+        },
+        {
+          "image_path": "demo/2.jpg",
+          "position": {"x": 100, "y": 100},
+          "z_index": 2,
+          "skip_rate": 10,
+          "scale": 0.5
+        },
+        {
+          "image_path": "demo/3.jpeg",
+          "position": {"x": 200, "y": 200},
+          "z_index": 3,
+          "skip_rate": 10,
+          "scale": 0.3
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "duration": 15.0,
+    "frame_rate": 30,
+    "property_tracks": {
+      "layer.0.opacity": {
+        "keyframes": [
+          {"time": 0.0, "value": 0.0, "interpolation": "ease_in"},
+          {"time": 1.0, "value": 1.0, "interpolation": "linear"}
+        ]
+      },
+      "layer.0.position": {
+        "keyframes": [
+          {"time": 0.0, "value": {"x": -100, "y": 0}, "interpolation": "ease_out"},
+          {"time": 1.0, "value": {"x": 0, "y": 0}, "interpolation": "linear"}
+        ]
+      },
+      "layer.1.opacity": {
+        "keyframes": [
+          {"time": 2.0, "value": 0.0, "interpolation": "ease_in"},
+          {"time": 3.0, "value": 1.0, "interpolation": "linear"}
+        ]
+      },
+      "layer.1.scale": {
+        "keyframes": [
+          {"time": 2.0, "value": 0.2, "interpolation": "ease_out"},
+          {"time": 3.0, "value": 0.5, "interpolation": "linear"}
+        ]
+      },
+      "layer.2.opacity": {
+        "keyframes": [
+          {"time": 4.0, "value": 0.0, "interpolation": "ease_in"},
+          {"time": 5.0, "value": 1.0, "interpolation": "linear"}
+        ]
+      },
+      "layer.2.position": {
+        "keyframes": [
+          {"time": 4.0, "value": {"x": 200, "y": -50}, "interpolation": "ease_out"},
+          {"time": 5.0, "value": {"x": 200, "y": 200}, "interpolation": "linear"}
+        ]
+      },
+      "layer.0.opacity.exit": {
+        "keyframes": [
+          {"time": 12.0, "value": 1.0, "interpolation": "ease_out"},
+          {"time": 13.0, "value": 0.0, "interpolation": "linear"}
+        ]
+      },
+      "layer.1.opacity.exit": {
+        "keyframes": [
+          {"time": 13.0, "value": 1.0, "interpolation": "ease_out"},
+          {"time": 14.0, "value": 0.0, "interpolation": "linear"}
+        ]
+      },
+      "layer.2.opacity.exit": {
+        "keyframes": [
+          {"time": 14.0, "value": 1.0, "interpolation": "ease_out"},
+          {"time": 15.0, "value": 0.0, "interpolation": "linear"}
+        ]
+      }
+    },
+    "sync_points": [
+      {
+        "time": 1.0,
+        "elements": ["layer.0"],
+        "label": "Element 1 fully appeared",
+        "metadata": {
+          "animation": "slide_in_from_left"
+        }
+      },
+      {
+        "time": 3.0,
+        "elements": ["layer.1"],
+        "label": "Element 2 fully appeared",
+        "metadata": {
+          "animation": "zoom_in"
+        }
+      },
+      {
+        "time": 5.0,
+        "elements": ["layer.2"],
+        "label": "Element 3 fully appeared",
+        "metadata": {
+          "animation": "drop_from_top"
+        }
+      },
+      {
+        "time": 5.0,
+        "elements": ["layer.0", "layer.1", "layer.2"],
+        "label": "All elements visible",
+        "metadata": {
+          "description": "Complete scene assembled"
+        }
+      }
+    ],
+    "markers": [
+      {
+        "time": 0.0,
+        "label": "Start",
+        "color": "#00FF00",
+        "metadata": {"scene": "intro"}
+      },
+      {
+        "time": 1.0,
+        "label": "Element 1 Ready",
+        "color": "#33FF00"
+      },
+      {
+        "time": 3.0,
+        "label": "Element 2 Ready",
+        "color": "#66FF00"
+      },
+      {
+        "time": 5.0,
+        "label": "All Elements Ready",
+        "color": "#FFFF00",
+        "metadata": {"scene": "main_content"}
+      },
+      {
+        "time": 12.0,
+        "label": "Exit Sequence Start",
+        "color": "#FF9900",
+        "metadata": {"scene": "outro"}
+      },
+      {
+        "time": 15.0,
+        "label": "End",
+        "color": "#FF0000"
+      }
+    ]
+  }
+}

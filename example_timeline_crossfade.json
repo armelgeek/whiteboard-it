@@ -1,0 +1,86 @@
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 10,
+      "layers": [
+        {
+          "image_path": "demo/1.jpg",
+          "position": {"x": 0, "y": 0},
+          "z_index": 1,
+          "skip_rate": 10
+        },
+        {
+          "image_path": "demo/2.jpg",
+          "position": {"x": 0, "y": 0},
+          "z_index": 2,
+          "skip_rate": 10
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "duration": 10.0,
+    "frame_rate": 30,
+    "property_tracks": {
+      "layer.0.opacity": {
+        "keyframes": [
+          {"time": 0.0, "value": 1.0, "interpolation": "linear"},
+          {"time": 4.0, "value": 1.0, "interpolation": "ease_out"},
+          {"time": 6.0, "value": 0.0, "interpolation": "linear"}
+        ]
+      },
+      "layer.1.opacity": {
+        "keyframes": [
+          {"time": 0.0, "value": 0.0, "interpolation": "linear"},
+          {"time": 4.0, "value": 0.0, "interpolation": "ease_in"},
+          {"time": 6.0, "value": 1.0, "interpolation": "linear"}
+        ]
+      }
+    },
+    "markers": [
+      {
+        "time": 0.0,
+        "label": "Start",
+        "color": "#00FF00",
+        "metadata": {
+          "description": "Video begins"
+        }
+      },
+      {
+        "time": 4.0,
+        "label": "Crossfade Start",
+        "color": "#FFFF00",
+        "metadata": {
+          "description": "Transition between images begins"
+        }
+      },
+      {
+        "time": 6.0,
+        "label": "Crossfade End",
+        "color": "#FF9900",
+        "metadata": {
+          "description": "Transition complete"
+        }
+      },
+      {
+        "time": 10.0,
+        "label": "End",
+        "color": "#FF0000",
+        "metadata": {
+          "description": "Video ends"
+        }
+      }
+    ],
+    "sync_points": [
+      {
+        "time": 4.0,
+        "elements": ["layer.0", "layer.1"],
+        "label": "Crossfade sync",
+        "metadata": {
+          "description": "Both layers change opacity simultaneously"
+        }
+      }
+    ]
+  }
+}
