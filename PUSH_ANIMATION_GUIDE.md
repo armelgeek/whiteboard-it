@@ -4,13 +4,16 @@
 
 The hand push animation feature allows you to animate objects being pushed into the scene by a visible hand. This creates a more interactive and engaging effect compared to standard slide-in animations.
 
+**✨ Enhanced in v2:** Now includes smooth easing (ease_out) for natural motion and improved hand positioning (70% overlap) for better visibility!
+
 ## How It Works
 
 When you use a `push_from_*` animation type, the system:
-1. Animates the object sliding in from the specified direction
+1. Animates the object sliding in from the specified direction with smooth easing
 2. Overlays a hand image that appears to be pushing the object
 3. Synchronizes the hand position with the object movement
-4. Gradually fades or slides the hand along with the object
+4. Uses ease_out easing for natural deceleration (fast start, smooth stop)
+5. Positions hand with increased overlap for better visibility and realism
 
 ## Animation Types
 
@@ -91,14 +94,23 @@ python whiteboard_animator.py --config examples/push_animation_example.json
 
 ### Hand Positioning
 
-The hand is automatically positioned relative to the object being pushed:
+The hand is automatically positioned relative to the object being pushed with improved overlap for better visibility:
 
-- **push_from_left**: Hand appears at the left edge of the object
-- **push_from_right**: Hand appears at the right edge of the object
-- **push_from_top**: Hand appears at the top edge of the object
-- **push_from_bottom**: Hand appears at the bottom edge of the object
+- **push_from_left**: Hand appears at the left edge with 70% overlap
+- **push_from_right**: Hand appears at the right edge with 20% offset
+- **push_from_top**: Hand appears at the top edge with 70% overlap
+- **push_from_bottom**: Hand appears at the bottom edge with 20% offset
 
-The hand offset is calculated as 30% of the hand's width/height to create a natural pushing appearance.
+The increased overlap creates a more visible and natural pushing effect where you can clearly see the hand behind the element.
+
+### Animation Easing
+
+Push animations use **ease_out** easing, which provides:
+- Fast initial movement (mimics the force of a push)
+- Gradual deceleration as the element reaches its position
+- Natural, physics-based motion that looks realistic
+
+This makes the animation feel like a real object being pushed into place.
 
 ### Performance
 

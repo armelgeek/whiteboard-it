@@ -4,6 +4,12 @@
 
 The push animation feature adds interactive hand-based entrance animations where a visible hand appears to push elements onto the scene.
 
+**Recent Improvements (v2):**
+- ✅ Added smooth easing (ease_out) for natural deceleration
+- ✅ Increased hand overlap (70%) for better visibility and pushing effect
+- ✅ Improved hand positioning to move dynamically with elements
+- ✅ More realistic physics-based motion
+
 ## Animation Types
 
 ### 1. Push From Left (`push_from_left`)
@@ -130,13 +136,16 @@ Frame 0    Frame 15   Frame 30   (30 FPS, 1.0s duration)
 │          │          │
 ├──────────┼──────────┤
 │          │          │
-│    ✋🖼️  │   ✋🖼️   │    🖼️     (push_from_left)
+│    ✋🖼️  │   ✋🖼️   │    🖼️     (push_from_left with ease_out)
 │          │          │
 └──────────┴──────────┘
 
 Element and hand start off-screen → 
-Move together → 
+Move together with smooth deceleration → 
 Element reaches final position (hand fades)
+
+Note: Animation uses ease_out easing for natural deceleration -
+starts fast and gradually slows down for realistic pushing motion.
 ```
 
 ## Example Scenarios
@@ -201,19 +210,34 @@ Element reaches final position (hand fades)
 
 ### Hand Position
 
-The hand is positioned with a 30% overlap on the element:
+The hand is positioned with increased overlap (70% for left/top, 20% offset for right/bottom) to create a more visible and natural pushing effect:
 
 ```
-push_from_left:
+push_from_left (70% overlap):
 ┌──────────┐
-│   Hand   │────┐
-└──────────┘    │
-      └─────────┼─────┐
-                │ Obj │
-                └─────┘
+│   Hand   │────────┐
+└──────────┘        │
+      └─────────────┼─────┐
+                    │ Obj │
+                    └─────┘
+
+push_from_right (20% offset):
+        ┌──────────┐
+    ┌───┤   Hand   │
+    │   └──────────┘
+┌───┼─────┘
+│Obj│
+└───┘
 ```
 
-This creates a natural "pushing" appearance.
+The increased overlap creates a stronger "pushing" appearance where the hand is clearly behind and pushing the element.
+
+### Animation Easing
+
+All push animations use **ease_out** easing, which means:
+- Fast initial movement (like a real push)
+- Gradual deceleration as element reaches position
+- Natural, realistic motion that mimics physics
 
 ### Duration Guidelines
 

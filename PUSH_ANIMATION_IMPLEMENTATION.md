@@ -42,12 +42,16 @@ Modified the layer animation logic in `draw_layered_whiteboard_animations()` to:
 
 The hand is positioned dynamically based on the push direction:
 
-- **Left**: Hand at `x = offset - (hand_width * 0.3)`, centered vertically
-- **Right**: Hand at `x = width - offset`, centered vertically
-- **Top**: Hand at `y = offset - (hand_height * 0.3)`, centered horizontally
-- **Bottom**: Hand at `y = height - offset`, centered horizontally
+- **Left**: Hand at `x = offset - (hand_width * 0.7)`, centered vertically
+- **Right**: Hand at `x = width - offset + (hand_width * 0.2)`, centered vertically
+- **Top**: Hand at `y = offset - (hand_height * 0.7)`, centered horizontally
+- **Bottom**: Hand at `y = height - offset + (hand_height * 0.2)`, centered horizontally
 
-The 0.3 offset creates a natural pushing appearance where the hand slightly overlaps the element.
+The increased overlap (0.7) creates a more natural pushing appearance where the hand visibly pushes the element.
+
+### Animation Easing
+
+The push animation uses an `ease_out` easing function for natural deceleration, making the push feel more realistic. The element starts moving quickly and gradually slows down as it reaches its final position, similar to how a real object would move when pushed.
 
 ## Files Added/Modified
 
@@ -150,7 +154,7 @@ Possible improvements for future versions:
 
 1. **Custom Hand Images**: Allow users to specify different hand images per animation
 2. **Hand Rotation**: Rotate hand based on push direction for more realism
-3. **Easing Functions**: Add acceleration/deceleration for smoother motion
+3. **Configurable Easing**: Allow users to specify different easing types (currently uses ease_out)
 4. **Hand Size Adjustment**: Scale hand dynamically based on object size
 5. **Multi-Hand Push**: Support multiple hands for large objects
 
