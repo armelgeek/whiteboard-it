@@ -352,25 +352,26 @@
 
 ---
 
-### 10. **Performance et Optimisation** (40% implémenté)
+### 10. **Performance et Optimisation** (85% implémenté)
 
 **Implémenté:**
-- Skip rate pour contrôle vitesse
-- Optimisation basic du rendu
+- ✅ Skip rate pour contrôle vitesse
+- ✅ Optimisation basic du rendu
+- ✅ **Progressive rendering** - Rendu progressif avec preview (mode --preview)
+- ✅ **Render queue** - File d'attente de rendus (mode batch)
+- ✅ **Background rendering** - Rendu en arrière-plan avec suivi de progrès
+- ✅ **Resume interrupted renders** - Reprise de rendus interrompus (checkpoints)
+- ✅ **Memory optimization** - Optimisation mémoire pour grandes vidéos (mode --memory-efficient)
+- ✅ **Batch processing** - Traitement par lots (mode --batch)
+- ✅ **Quality presets** - Préréglages de qualité (preview, draft, standard, high, ultra)
 
 **Fonctionnalités manquantes:**
-- ❌ **Multi-threading** - Rendu multi-thread
-- ❌ **GPU acceleration** - Accélération GPU (CUDA/OpenCL)
-- ❌ **Progressive rendering** - Rendu progressif avec preview
-- ❌ **Render queue** - File d'attente de rendus
-- ❌ **Background rendering** - Rendu en arrière-plan
-- ❌ **Resume interrupted renders** - Reprise de rendus interrompus
-- ❌ **Memory optimization** - Optimisation mémoire pour grandes vidéos
-- ❌ **Batch processing** - Traitement par lots
+- ❌ **Multi-threading** - Rendu multi-thread (infrastructure prête, intégration partielle)
+- ❌ **GPU acceleration** - Accélération GPU (CUDA/OpenCL) - nécessite matériel spécialisé
 
 **Impact:** Haute (critique pour projets longs/complexes)
 
-**Effort estimé:** 10-15 jours de développement
+**Effort estimé:** 2-3 jours pour multi-threading complet, GPU accélération nécessite refonte majeure
 
 ---
 
@@ -421,9 +422,12 @@
    - Animations d'entrée/sortie augmentent durée totale
 
 5. **Performance**
-   - Rendu single-thread (pas de parallélisation)
-   - Pas d'accélération GPU
-   - Rendus longs bloquent le processus
+   - ✅ Preview mode disponible pour tests rapides
+   - ✅ Checkpoints pour reprendre rendus interrompus
+   - ✅ Mode batch pour traiter plusieurs vidéos
+   - ✅ Optimisation mémoire pour grandes vidéos
+   - ⚠️ Rendu single-thread par défaut (multi-thread en cours)
+   - ❌ Pas d'accélération GPU (nécessite matériel spécialisé)
 
 6. **Export**
    - Pas d'export avec transparence (alpha channel)
