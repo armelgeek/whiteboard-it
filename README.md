@@ -5,10 +5,11 @@ Application de création d'animations de type "dessin sur tableau blanc" (whiteb
 ## Fonctionnalités
 
 - ✅ Génération de vidéos d'animation de dessin à partir d'images
-- ✅ **🆕 Formes géométriques** - Cercles, rectangles, triangles, polygones, lignes, flèches (NOUVEAU!)
-- ✅ **🆕 Animation "Hand Push"** - Main poussant des éléments vers leur position (NOUVEAU!)
-- ✅ **🆕 Couches de texte dynamiques** - Texte généré à la volée avec animation handwriting (NOUVEAU!)
-- ✅ **🆕 Système de caméra avancé** - Séquences de caméras multiples avec transitions fluides (NOUVEAU!)
+- ✅ **🆕 Timeline et Synchronisation Avancée** - Système complet de timeline avec keyframes, markers, sync points (NOUVEAU!)
+- ✅ **🆕 Formes géométriques** - Cercles, rectangles, triangles, polygones, lignes, flèches
+- ✅ **🆕 Animation "Hand Push"** - Main poussant des éléments vers leur position
+- ✅ **🆕 Couches de texte dynamiques** - Texte généré à la volée avec animation handwriting
+- ✅ **🆕 Système de caméra avancé** - Séquences de caméras multiples avec transitions fluides
 - ✅ **Contrôles de caméra** - Zoom et focus sur des zones spécifiques
 - ✅ **Animations avancées** - Effets de zoom-in/zoom-out post-dessin
 - ✅ **Gomme intelligente** - Effet d'effacement naturel pour les couches superposées
@@ -22,6 +23,20 @@ Application de création d'animations de type "dessin sur tableau blanc" (whiteb
 - ✅ Export JSON des données d'animation
 - ✅ Support de plusieurs formats d'image
 - ✅ Animation avec main réaliste
+
+### 🆕 Timeline et Synchronisation (NOUVEAU!)
+
+Le système de timeline offre un contrôle précis sur le timing et la synchronisation:
+
+- **Keyframes** - Animation par keyframes avec interpolation automatique
+- **Courbes d'animation** - 8 types d'easing (linear, ease_in, ease_out, ease_in_out, etc.)
+- **Time markers** - Marqueurs visuels pour organiser votre timeline
+- **Sync points** - Synchronisation parfaite entre plusieurs éléments
+- **Loop segments** - Répétition de segments d'animation
+- **Time remapping** - Contrôle de la vitesse (slow-motion, accéléré)
+- **Courbes Bézier** - Courbes d'animation personnalisées
+
+**Voir**: [TIMELINE_QUICKSTART.md](TIMELINE_QUICKSTART.md) pour démarrer en 5 minutes!
 
 ## Installation
 
