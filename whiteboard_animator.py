@@ -1193,8 +1193,54 @@ def draw_text_handwriting(
             for y_start, y_end in segments:
                 column_segments.append((x, y_start, y_end))
     
-    # Sort segments by x coordinate (left to right), then by y (top to bottom)
-    column_segments.sort(key=lambda seg: (seg[0], seg[1]))
+    # Group segments by line based on y-coordinates
+    # This ensures multiline text is written line-by-line instead of column-by-column across all lines
+    if len(column_segments) > 0:
+        # Find line breaks by detecting significant y-coordinate gaps
+        y_centers = sorted(set((seg[1] + seg[2]) // 2 for seg in column_segments))
+        
+        # Group y_centers into lines (gap threshold is half the average line height)
+        lines = []
+        current_line = [y_centers[0]]
+        
+        if len(y_centers) > 1:
+            # Calculate average distance between consecutive y_centers
+            y_diffs = [y_centers[i+1] - y_centers[i] for i in range(len(y_centers)-1)]
+            avg_diff = sum(y_diffs) / len(y_diffs) if y_diffs else 0
+            gap_threshold = max(20, avg_diff * 1.5)  # Minimum 20px gap or 1.5x average spacing
+            
+            for y_center in y_centers[1:]:
+                if y_center - current_line[-1] > gap_threshold:
+                    # New line detected
+                    lines.append(current_line)
+                    current_line = [y_center]
+                else:
+                    current_line.append(y_center)
+            
+        lines.append(current_line)
+        
+        # Assign each segment to a line based on its y_center
+        def get_line_number(seg):
+            y_center = (seg[1] + seg[2]) // 2
+            for line_idx, line_y_centers in enumerate(lines):
+                if y_center in line_y_centers or any(abs(y_center - ly) <= 5 for ly in line_y_centers):
+                    return line_idx
+            # Fallback: assign to closest line
+            min_dist = float('inf')
+            closest_line = 0
+            for line_idx, line_y_centers in enumerate(lines):
+                for ly in line_y_centers:
+                    dist = abs(y_center - ly)
+                    if dist < min_dist:
+                        min_dist = dist
+                        closest_line = line_idx
+            return closest_line
+        
+        # Sort segments: first by line number, then by x coordinate (left to right), then by y
+        column_segments.sort(key=lambda seg: (get_line_number(seg), seg[0], seg[1]))
+    else:
+        # Fallback to original sorting if no segments
+        column_segments.sort(key=lambda seg: (seg[0], seg[1]))
     
     # Initialize animation data if JSON export is enabled
     if variables.export_json:
