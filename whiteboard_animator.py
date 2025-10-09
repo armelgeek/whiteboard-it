@@ -46,6 +46,18 @@ except ImportError:
     EXPORT_FORMATS_AVAILABLE = False
     print("⚠️ Warning: export_formats module not available. Advanced export features disabled.")
 
+# Import audio manager module
+try:
+    from audio_manager import (
+        AudioManager, add_audio_to_video, process_audio_config,
+        PYDUB_AVAILABLE
+    )
+    AUDIO_MODULE_AVAILABLE = True
+except ImportError:
+    AUDIO_MODULE_AVAILABLE = False
+    PYDUB_AVAILABLE = False
+    print("⚠️ Warning: audio_manager module not available. Audio features disabled.")
+
 # from kivy.clock import Clock # COMMENTÉ: Remplacé par un appel direct pour CLI
 
 # --- Variables Globales ---
@@ -4377,7 +4389,7 @@ def initiate_sketch_sync(image_path, split_len, frame_rate, object_skip_rate, bg
     callback(final_result)
 
 
-def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate, bg_object_skip_rate, main_img_duration, which_platform="linux", export_json=False, transition='none', transition_duration=0.5, per_slide_config=None, aspect_ratio='original', crf=DEFAULT_CRF, watermark_path=None, watermark_position='bottom-right', watermark_opacity=0.5, watermark_scale=0.1):
+def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate, bg_object_skip_rate, main_img_duration, which_platform="linux", export_json=False, transition='none', transition_duration=0.5, per_slide_config=None, aspect_ratio='original', crf=DEFAULT_CRF, watermark_path=None, watermark_position='bottom-right', watermark_opacity=0.5, watermark_scale=0.1, audio_config=None, background_music=None, music_volume=0.5, music_fade_in=0, music_fade_out=0, enable_typewriter_sound=False, enable_drawing_sound=False):
     """Traite plusieurs images et génère une vidéo combinée.
     
     Args:
@@ -4398,6 +4410,13 @@ def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate
         watermark_position: Position of watermark
         watermark_opacity: Opacity of watermark (0.0-1.0)
         watermark_scale: Scale of watermark relative to frame width
+        audio_config: Audio configuration dictionary
+        background_music: Path to background music file
+        music_volume: Background music volume (0.0-1.0)
+        music_fade_in: Music fade-in duration in seconds
+        music_fade_out: Music fade-out duration in seconds
+        enable_typewriter_sound: Enable typewriter sounds for text animations
+        enable_drawing_sound: Enable drawing sounds for animations
     """
     global platform
     platform = which_platform
@@ -4435,6 +4454,43 @@ def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate
     current_time = str(now.strftime("%H%M%S"))
     current_date = str(now.strftime("%Y%m%d"))
     series_id = f"{current_date}_{current_time}"
+    
+    # Initialize audio manager if audio is requested
+    audio_manager = None
+    total_video_duration = 0.0
+    
+    if AUDIO_MODULE_AVAILABLE and PYDUB_AVAILABLE and (audio_config or background_music or enable_typewriter_sound or enable_drawing_sound):
+        print("\n🔊 Audio Support Enabled")
+        audio_manager = AudioManager(frame_rate=frame_rate)
+        
+        # Load audio configuration from file if provided
+        if audio_config:
+            if os.path.exists(audio_config):
+                try:
+                    with open(audio_config, 'r', encoding='utf-8') as f:
+                        audio_cfg = json.load(f)
+                    print(f"✅ Audio configuration loaded: {audio_config}")
+                    
+                    # Process global audio configuration
+                    if 'audio' in audio_cfg:
+                        process_audio_config(audio_cfg['audio'], audio_manager)
+                except Exception as e:
+                    print(f"⚠️ Error loading audio config: {e}")
+            else:
+                print(f"⚠️ Audio config file not found: {audio_config}")
+        
+        # Load background music from CLI argument
+        if background_music and os.path.exists(background_music):
+            audio_manager.load_background_music(
+                background_music,
+                volume=music_volume,
+                loop=True,
+                fade_in=music_fade_in,
+                fade_out=music_fade_out
+            )
+    elif (audio_config or background_music or enable_typewriter_sound or enable_drawing_sound):
+        print("⚠️ Audio requested but pydub is not installed. Audio features disabled.")
+        print("   Install with: pip install pydub")
     
     # Préparer les configurations de transition par slide
     transition_configs = []
@@ -4631,6 +4687,57 @@ def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate
         )
         
         if concat_success:
+            # Add audio to video if audio manager was initialized
+            if audio_manager is not None:
+                print("\n" + "="*60)
+                print("🔊 ADDING AUDIO TO VIDEO")
+                print("="*60)
+                
+                # Calculate total video duration by inspecting the final video
+                try:
+                    import av
+                    with av.open(combined_video_path) as container:
+                        if container.streams.video:
+                            stream = container.streams.video[0]
+                            duration_seconds = float(stream.duration * stream.time_base)
+                            audio_manager.set_total_duration(duration_seconds)
+                            print(f"📊 Video duration: {duration_seconds:.2f}s")
+                except Exception as e:
+                    print(f"⚠️ Could not determine video duration: {e}")
+                
+                # Export mixed audio
+                temp_audio_path = os.path.join(save_path, f"audio_{series_id}.wav")
+                if audio_manager.export_audio(temp_audio_path, format="wav"):
+                    # Create final video with audio
+                    final_video_name = f"vid_{series_id}_combined_with_audio.mp4"
+                    final_video_path = os.path.join(save_path, final_video_name)
+                    
+                    if add_audio_to_video(combined_video_path, temp_audio_path, final_video_path):
+                        # Remove temporary audio file
+                        try:
+                            os.unlink(temp_audio_path)
+                            print(f"  🗑️ Temporary audio file removed")
+                        except:
+                            pass
+                        
+                        # Remove video without audio
+                        try:
+                            os.unlink(combined_video_path)
+                            print(f"  🗑️ Video without audio removed")
+                        except:
+                            pass
+                        
+                        # Update path to point to video with audio
+                        combined_video_path = final_video_path
+                        print(f"✅ Final video with audio: {combined_video_path}")
+                    else:
+                        print("⚠️ Failed to add audio to video. Using video without audio.")
+                        # Clean up temp audio file
+                        try:
+                            os.unlink(temp_audio_path)
+                        except:
+                            pass
+            
             # Supprimer les vidéos individuelles après concaténation réussie
             for video_path in generated_videos:
                 try:
@@ -4666,9 +4773,63 @@ def process_multiple_images(image_paths, split_len, frame_rate, object_skip_rate
             return result
     else:
         # Une seule vidéo générée
+        single_video_path = generated_videos[0]
+        
+        # Add audio to video if audio manager was initialized
+        if audio_manager is not None:
+            print("\n" + "="*60)
+            print("🔊 ADDING AUDIO TO VIDEO")
+            print("="*60)
+            
+            # Calculate total video duration by inspecting the final video
+            try:
+                import av
+                with av.open(single_video_path) as container:
+                    if container.streams.video:
+                        stream = container.streams.video[0]
+                        duration_seconds = float(stream.duration * stream.time_base)
+                        audio_manager.set_total_duration(duration_seconds)
+                        print(f"📊 Video duration: {duration_seconds:.2f}s")
+            except Exception as e:
+                print(f"⚠️ Could not determine video duration: {e}")
+            
+            # Export mixed audio
+            temp_audio_path = os.path.join(save_path, f"audio_{series_id}.wav")
+            if audio_manager.export_audio(temp_audio_path, format="wav"):
+                # Create final video with audio
+                base_name = os.path.splitext(os.path.basename(single_video_path))[0]
+                final_video_name = f"{base_name}_with_audio.mp4"
+                final_video_path = os.path.join(save_path, final_video_name)
+                
+                if add_audio_to_video(single_video_path, temp_audio_path, final_video_path):
+                    # Remove temporary audio file
+                    try:
+                        os.unlink(temp_audio_path)
+                        print(f"  🗑️ Temporary audio file removed")
+                    except:
+                        pass
+                    
+                    # Remove video without audio
+                    try:
+                        os.unlink(single_video_path)
+                        print(f"  🗑️ Video without audio removed")
+                    except:
+                        pass
+                    
+                    # Update path to point to video with audio
+                    single_video_path = final_video_path
+                    print(f"✅ Final video with audio: {single_video_path}")
+                else:
+                    print("⚠️ Failed to add audio to video. Using video without audio.")
+                    # Clean up temp audio file
+                    try:
+                        os.unlink(temp_audio_path)
+                    except:
+                        pass
+        
         result = {
             "status": True,
-            "message": generated_videos[0],
+            "message": single_video_path,
             "images_processed": 1,
             "videos_generated": 1
         }
@@ -4925,6 +5086,61 @@ def main():
         '--list-presets',
         action='store_true',
         help="Affiche tous les presets de médias sociaux disponibles et quitte."
+    )
+    
+    # Audio arguments
+    parser.add_argument(
+        '--audio-config',
+        type=str,
+        default=None,
+        help="Chemin vers un fichier JSON de configuration audio (musique de fond, effets sonores, voix off, etc.)."
+    )
+    
+    parser.add_argument(
+        '--background-music',
+        type=str,
+        default=None,
+        help="Chemin vers un fichier audio pour la musique de fond (mp3, wav, ogg, etc.)."
+    )
+    
+    parser.add_argument(
+        '--music-volume',
+        type=float,
+        default=0.5,
+        help="Volume de la musique de fond (0.0 à 1.0, par défaut: 0.5)."
+    )
+    
+    parser.add_argument(
+        '--music-fade-in',
+        type=float,
+        default=0.0,
+        help="Durée du fade-in de la musique en secondes (par défaut: 0)."
+    )
+    
+    parser.add_argument(
+        '--music-fade-out',
+        type=float,
+        default=0.0,
+        help="Durée du fade-out de la musique en secondes (par défaut: 0)."
+    )
+    
+    parser.add_argument(
+        '--enable-typewriter-sound',
+        action='store_true',
+        help="Active les sons de machine à écrire pour les animations de texte."
+    )
+    
+    parser.add_argument(
+        '--enable-drawing-sound',
+        action='store_true',
+        help="Active les sons de dessin pour les animations de tracé."
+    )
+    
+    parser.add_argument(
+        '--audio-output',
+        type=str,
+        default=None,
+        help="Chemin pour exporter l'audio mixé séparément (wav, mp3, etc.)."
     )
 
     args = parser.parse_args()
@@ -5202,6 +5418,17 @@ def main():
             aspect_ratio=args.aspect_ratio,
             crf=args.quality,
             watermark_path=args.watermark,
+            watermark_position=args.watermark_position,
+            watermark_opacity=args.watermark_opacity,
+            watermark_scale=args.watermark_scale,
+            audio_config=args.audio_config,
+            background_music=args.background_music,
+            music_volume=args.music_volume,
+            music_fade_in=args.music_fade_in,
+            music_fade_out=args.music_fade_out,
+            enable_typewriter_sound=args.enable_typewriter_sound,
+            enable_drawing_sound=args.enable_drawing_sound
+        )
             watermark_position=args.watermark_position,
             watermark_opacity=args.watermark_opacity,
             watermark_scale=args.watermark_scale

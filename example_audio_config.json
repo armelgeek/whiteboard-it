@@ -1,0 +1,89 @@
+{
+  "audio": {
+    "background_music": {
+      "path": "audio/background_music.mp3",
+      "volume": 0.5,
+      "loop": true,
+      "fade_in": 1.0,
+      "fade_out": 2.0
+    },
+    "sound_effects": [
+      {
+        "path": "audio/whoosh.wav",
+        "start_time": 2.5,
+        "volume": 0.8,
+        "duration": 0.5
+      },
+      {
+        "path": "audio/pop.wav",
+        "start_time": 5.0,
+        "volume": 0.6
+      }
+    ],
+    "voice_overs": [
+      {
+        "path": "audio/narration_intro.mp3",
+        "start_time": 0.0,
+        "volume": 1.0
+      },
+      {
+        "path": "audio/narration_conclusion.mp3",
+        "start_time": 15.0,
+        "volume": 1.0
+      }
+    ]
+  },
+  "slides": [
+    {
+      "index": 0,
+      "duration": 5,
+      "audio": {
+        "drawing_sound": {
+          "start_time": 0.0,
+          "duration": 3.0,
+          "volume": 0.2
+        }
+      },
+      "layers": [
+        {
+          "image_path": "demo/1.jpg",
+          "position": {"x": 0, "y": 0},
+          "z_index": 1,
+          "skip_rate": 10
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "duration": 8,
+      "audio": {
+        "typewriter": {
+          "start_time": 5.5,
+          "num_characters": 50,
+          "char_interval": 0.08,
+          "volume": 0.3
+        },
+        "sound_effects": [
+          {
+            "path": "audio/ding.wav",
+            "start_time": 10.0,
+            "volume": 0.7
+          }
+        ]
+      },
+      "layers": [
+        {
+          "text": {
+            "text": "Hello World! This is animated text with typewriter sound.",
+            "font": "Arial",
+            "size": 48,
+            "color": [0, 0, 0]
+          },
+          "position": {"x": 50, "y": 100},
+          "z_index": 1,
+          "mode": "typing"
+        }
+      ]
+    }
+  ]
+}
