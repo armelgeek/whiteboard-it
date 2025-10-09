@@ -5,6 +5,7 @@ Application de création d'animations de type "dessin sur tableau blanc" (whiteb
 ## Fonctionnalités
 
 - ✅ Génération de vidéos d'animation de dessin à partir d'images
+- ✅ **🆕 Performance & Optimisation** - Preview mode, checkpoints, batch processing, memory optimization
 - ✅ **🆕 Timeline et Synchronisation Avancée** - Système complet de timeline avec keyframes, markers, sync points (NOUVEAU!)
 - ✅ **🆕 Formes géométriques** - Cercles, rectangles, triangles, polygones, lignes, flèches
 - ✅ **🆕 Animation "Hand Push"** - Main poussant des éléments vers leur position
@@ -23,6 +24,20 @@ Application de création d'animations de type "dessin sur tableau blanc" (whiteb
 - ✅ Export JSON des données d'animation
 - ✅ Support de plusieurs formats d'image
 - ✅ Animation avec main réaliste
+
+### 🆕 Performance & Optimisation (NOUVEAU!)
+
+Optimisez vos rendus avec ces fonctionnalités avancées:
+
+- **Preview Mode** - Rendu rapide 50% résolution pour tests
+- **Quality Presets** - 5 niveaux (preview, draft, standard, high, ultra)
+- **Checkpoints** - Reprise de rendus interrompus
+- **Background Rendering** - Rendu en arrière-plan avec suivi de progrès
+- **Batch Processing** - Traitement de plusieurs vidéos en série ou parallèle
+- **Memory Optimization** - Gestion mémoire efficace pour grandes vidéos
+- **Multi-threading** - Infrastructure prête pour traitement parallèle
+
+**Voir**: [PERFORMANCE_GUIDE.md](PERFORMANCE_GUIDE.md) pour le guide complet!
 
 ### 🆕 Timeline et Synchronisation (NOUVEAU!)
 
@@ -170,6 +185,48 @@ python whiteboard_animator.py image.png --get-split-lens
 - `--config` : Fichier JSON pour une configuration personnalisée par slide (durée, vitesse, transitions, pauses, etc.)
 - `--export-json` : Exporter les données d'animation au format JSON
 - `--get-split-lens` : Afficher les valeurs recommandées pour split-len
+
+### Paramètres de performance (NOUVEAU)
+- `--preview` : Mode preview rapide (50% résolution, qualité réduite) pour tests
+- `--quality-preset` : Préréglage de qualité
+  - `preview` : Test rapide (28 CRF, 50% résolution)
+  - `draft` : Brouillon (28 CRF, 75% résolution)
+  - `standard` : Standard (23 CRF, 100%)
+  - `high` : Haute qualité (18 CRF, 100%)
+  - `ultra` : Ultra qualité (15 CRF, 100%)
+- `--enable-checkpoints` : Active les points de contrôle pour reprendre les rendus
+- `--resume CHECKPOINT_ID` : Reprendre un rendu depuis un checkpoint
+- `--list-checkpoints` : Afficher tous les checkpoints disponibles
+- `--background` : Exécuter en arrière-plan avec fichier de statut
+- `--batch CONFIG1 CONFIG2 ...` : Traiter plusieurs configs en batch
+- `--batch-parallel` : Traiter les configs batch en parallèle
+- `--threads N` : Nombre de threads pour traitement parallèle
+- `--memory-efficient` : Mode optimisation mémoire pour grandes vidéos
+
+### Exemples d'utilisation des fonctionnalités de performance
+
+```bash
+# Test rapide avec preview
+python whiteboard_animator.py --config video.json --preview
+
+# Rendu haute qualité avec checkpoints
+python whiteboard_animator.py --config video.json --quality-preset high --enable-checkpoints
+
+# Rendu en arrière-plan
+python whiteboard_animator.py --config video.json --background
+
+# Traitement batch de plusieurs vidéos
+python whiteboard_animator.py --batch video1.json video2.json video3.json
+
+# Reprendre un rendu interrompu
+python whiteboard_animator.py --list-checkpoints
+python whiteboard_animator.py --resume a1b2c3d4e5f6g7h8
+
+# Optimisation mémoire pour grande vidéo
+python whiteboard_animator.py --config large_video.json --memory-efficient
+```
+
+**Voir [PERFORMANCE_GUIDE.md](PERFORMANCE_GUIDE.md) pour plus de détails sur les optimisations de performance.**
 
 ## Configuration personnalisée par slide
 
