@@ -36,14 +36,23 @@
    - ✅ Animation SVG path-based (opt-in)
    - ✅ Typing ligne par ligne pour multi-ligne
 
-4. **Animations d'Entrée/Sortie**
+4. **Formes Géométriques** (NOUVEAU!)
+   - ✅ Cercles, rectangles, triangles
+   - ✅ Polygones personnalisés
+   - ✅ Lignes et flèches
+   - ✅ Remplissage et contours
+   - ✅ Animation de dessin progressive
+   - ✅ Support complet des animations (entrée/sortie/morph)
+   - ✅ Intégration avec système de couches
+
+5. **Animations d'Entrée/Sortie**
    - ✅ fade_in, fade_out
    - ✅ slide_in (from_left, from_right, from_top, from_bottom)
    - ✅ zoom_in, zoom_out
    - ✅ push_from_* (left, right, top, bottom) avec main
    - ✅ Durée personnalisable
 
-5. **Système de Caméra**
+6. **Système de Caméra**
    - ✅ Zoom statique sur couche
    - ✅ Position de focus (coordonnées normalisées 0-1)
    - ✅ Animations post-dessin (zoom_in, zoom_out)
@@ -51,7 +60,7 @@
    - ✅ Easing functions (linear, ease_in, ease_out, ease_in_out)
    - ✅ Focus dynamique pendant animation
 
-6. **Transitions Entre Slides**
+7. **Transitions Entre Slides**
    - ✅ none (instantané)
    - ✅ fade (fondu enchaîné)
    - ✅ wipe (balayage gauche-droite)
@@ -60,25 +69,25 @@
    - ✅ Durée personnalisable
    - ✅ Pause avant transition
 
-7. **Gomme Intelligente**
+8. **Gomme Intelligente**
    - ✅ Détection de contenu superposé
    - ✅ Pré-effacement automatique
    - ✅ Mode eraser pour couches
    - ✅ Masque d'effacement
 
-8. **Morphing Entre Couches**
+9. **Morphing Entre Couches**
    - ✅ Transition fluide entre 2 couches
    - ✅ Nombre de frames personnalisable
    - ✅ Fonctionne entre couches consécutives
 
-9. **Qualité et Export Vidéo**
-   - ✅ Ratios d'aspect: original, 1:1, 16:9, 9:16
-   - ✅ Résolutions HD
-   - ✅ Qualité CRF ajustable
-   - ✅ Export JSON des données d'animation
-   - ✅ Filigrane (watermark) avec position et opacité
+10. **Qualité et Export Vidéo**
+    - ✅ Ratios d'aspect: original, 1:1, 16:9, 9:16
+    - ✅ Résolutions HD
+    - ✅ Qualité CRF ajustable
+    - ✅ Export JSON des données d'animation
+    - ✅ Filigrane (watermark) avec position et opacité
 
-10. **Configuration Avancée**
+11. **Configuration Avancée**
     - ✅ Fichiers JSON de configuration
     - ✅ Configuration par slide
     - ✅ Configuration par couche
@@ -198,24 +207,27 @@
 
 ---
 
-### 3. **Formes Géométriques Dynamiques** (0% implémenté)
+### 3. **Formes Géométriques Dynamiques** (✅ 80% implémenté)
 
 **Description:** Génération et animation de formes vectorielles.
 
+**Fonctionnalités implémentées:**
+- ✅ **Basic shapes** - Cercles, rectangles, triangles, polygones
+- ✅ **Lines and arrows** - Lignes, flèches, connexions
+- ✅ **Drawing animation** - Animation de tracé de formes
+- ✅ **Fill support** - Support de remplissage de formes
+- ✅ **Morphing shapes** - Transformation d'une forme à l'autre (via système de morph existant)
+- ✅ **Flowcharts/diagrams** - Support de base pour diagrammes
+
 **Fonctionnalités manquantes:**
-- ❌ **Basic shapes** - Cercles, rectangles, triangles, polygones
-- ❌ **Lines and arrows** - Lignes, flèches, connexions
-- ❌ **Drawing animation** - Animation de tracé de formes
-- ❌ **Fill animation** - Animation de remplissage
-- ❌ **Morphing shapes** - Transformation d'une forme à l'autre
-- ❌ **Flowcharts/diagrams** - Support de diagrammes
-- ❌ **Mathematical plots** - Graphiques mathématiques
+- ❌ **Fill animation** - Animation progressive de remplissage
+- ❌ **Mathematical plots** - Graphiques mathématiques avancés (courbes, fonctions)
 
-**Impact:** Haute priorité pour contenus éducatifs/techniques
+**Impact:** Haute priorité pour contenus éducatifs/techniques - IMPLÉMENTÉ!
 
-**Effort estimé:** 8-12 jours de développement
+**Effort estimé restant:** 2-3 jours de développement pour fonctionnalités avancées
 
-**Note:** Nécessiterait système de rendu vectoriel (SVG -> frames)
+**Implémentation:** Système de rendu vectoriel basé sur OpenCV intégré au système de couches
 
 ---
 

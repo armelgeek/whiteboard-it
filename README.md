@@ -5,6 +5,7 @@ Application de création d'animations de type "dessin sur tableau blanc" (whiteb
 ## Fonctionnalités
 
 - ✅ Génération de vidéos d'animation de dessin à partir d'images
+- ✅ **🆕 Formes géométriques** - Cercles, rectangles, triangles, polygones, lignes, flèches (NOUVEAU!)
 - ✅ **🆕 Animation "Hand Push"** - Main poussant des éléments vers leur position (NOUVEAU!)
 - ✅ **🆕 Couches de texte dynamiques** - Texte généré à la volée avec animation handwriting (NOUVEAU!)
 - ✅ **🆕 Système de caméra avancé** - Séquences de caméras multiples avec transitions fluides (NOUVEAU!)
@@ -198,6 +199,63 @@ Le fichier de configuration permet de définir :
 ```
 
 Voir [CONFIG_FORMAT.md](CONFIG_FORMAT.md) pour la documentation complète du format de configuration.
+
+## Formes géométriques (NOUVEAU! 🔷)
+
+Créez des diagrammes, des schémas et des illustrations techniques avec des formes vectorielles animées :
+
+### Formes disponibles
+- **Cercles** - Formes circulaires parfaites
+- **Rectangles** - Rectangles et carrés
+- **Triangles** - Triangles équilatéraux
+- **Polygones** - Formes personnalisées avec n'importe quel nombre de côtés
+- **Lignes** - Lignes droites entre deux points
+- **Flèches** - Flèches avec tête personnalisable
+
+### Exemple d'utilisation
+
+```json
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 8,
+      "layers": [
+        {
+          "type": "shape",
+          "shape_config": {
+            "shape": "circle",
+            "color": "#0066CC",
+            "fill_color": "#99CCFF",
+            "stroke_width": 3,
+            "position": {"x": 640, "y": 360},
+            "size": 100
+          },
+          "z_index": 1,
+          "skip_rate": 10,
+          "mode": "draw"
+        },
+        {
+          "type": "shape",
+          "shape_config": {
+            "shape": "arrow",
+            "color": "#FF6600",
+            "stroke_width": 4,
+            "start": [200, 400],
+            "end": [1000, 400],
+            "arrow_size": 30
+          },
+          "z_index": 2,
+          "skip_rate": 8,
+          "mode": "draw"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Voir [SHAPES_GUIDE.md](SHAPES_GUIDE.md) pour la documentation complète des formes géométriques et [QUICKSTART_SHAPES.md](QUICKSTART_SHAPES.md) pour démarrer rapidement.
 
 ## Contrôles de caméra et animations avancées (NOUVEAU)
 

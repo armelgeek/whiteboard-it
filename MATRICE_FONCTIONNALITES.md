@@ -14,13 +14,14 @@
 │ 1.  Animation Whiteboard de Base                     ✅      -          │
 │ 2.  Système de Couches (Layers)                      ✅      -          │
 │ 3.  Couches de Texte Dynamiques                      ✅      -          │
-│ 4.  Animations d'Entrée/Sortie                       ✅      -          │
-│ 5.  Système de Caméra                                ✅      -          │
-│ 6.  Transitions Entre Slides                         ✅      -          │
-│ 7.  Gomme Intelligente                               ✅      -          │
-│ 8.  Morphing Entre Couches                           ✅      -          │
-│ 9.  Qualité et Export Vidéo                          ✅      -          │
-│ 10. Configuration Avancée                            ✅      -          │
+│ 4.  Formes Géométriques                              ✅      -          │
+│ 5.  Animations d'Entrée/Sortie                       ✅      -          │
+│ 6.  Système de Caméra                                ✅      -          │
+│ 7.  Transitions Entre Slides                         ✅      -          │
+│ 8.  Gomme Intelligente                               ✅      -          │
+│ 9.  Morphing Entre Couches                           ✅      -          │
+│ 10. Qualité et Export Vidéo                          ✅      -          │
+│ 11. Configuration Avancée                            ✅      -          │
 └─────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -57,25 +58,19 @@
 │     - Sync audio/vidéo                                ❌                 │
 │     Effort: 7-10 jours                                                   │
 │                                                                          │
-│ 15. Formes Géométriques                               ❌      🔴         │
-│     - Cercles, rectangles, flèches                    ❌                 │
-│     - Animation de tracé                              ❌                 │
-│     - Diagrammes                                      ❌                 │
-│     Effort: 8-12 jours                                                   │
-│                                                                          │
-│ 16. Optimisation Performance (40%)                    ⚠️      🔴         │
+│ 15. Optimisation Performance (40%)                    ⚠️      🔴         │
 │     - Multi-threading                                 ❌                 │
 │     - Accélération GPU                                ❌                 │
 │     - File d'attente de rendus                        ❌                 │
 │     Effort: 10-15 jours                                                  │
 │                                                                          │
-│ 17. Timeline Avancée (30%)                            ⚠️      🔴         │
+│ 16. Timeline Avancée (30%)                            ⚠️      🔴         │
 │     - Système de keyframes                            ❌                 │
 │     - Points de synchronisation                       ❌                 │
 │     - Courbes d'animation                             ❌                 │
 │     Effort: 8-10 jours                                                   │
 │                                                                          │
-│ 18. Templates & Presets                               ❌      🔴         │
+│ 17. Templates & Presets                               ❌      🔴         │
 │     - Templates de scènes                             ❌                 │
 │     - Presets d'animations                            ❌                 │
 │     - Bibliothèque                                    ❌                 │
@@ -144,9 +139,9 @@
 **Impact:** Sans audio, impossible de créer des vidéos complètes professionnelles
 **Cas d'usage bloqués:** Tutoriels vidéo, marketing, e-learning
 
-### 2. 📐 Formes Géométriques (❌ 0%)
-**Impact:** Limite forte pour contenus techniques et éducatifs
-**Cas d'usage bloqués:** Diagrammes, schémas explicatifs, mathématiques
+### 2. 📐 Formes Géométriques (✅ 80%)
+**Impact:** IMPLÉMENTÉ! Support de base pour contenus techniques et éducatifs
+**Fonctionnalités:** Cercles, rectangles, triangles, polygones, lignes, flèches avec animations
 
 ### 3. ⚡ Performance (⚠️ 40%)
 **Impact:** Temps de rendu prohibitifs pour projets complexes
@@ -165,10 +160,10 @@
 Si vous ne pouvez implémenter que **3 fonctionnalités**, choisissez:
 
 1. **Audio Support** - Débloque usage professionnel complet
-2. **Formes Géométriques** - Différenciateur majeur vs concurrents
+2. ~~**Formes Géométriques**~~ - ✅ IMPLÉMENTÉ! (Cercles, rectangles, triangles, polygones, lignes, flèches)
 3. **Multi-threading Performance** - Rend le système utilisable à grande échelle
 
-Ces 3 fonctionnalités représentent environ **25-37 jours** de développement et transformeraient le système d'un outil de démonstration à un produit professionnel viable.
+Ces fonctionnalités représentent environ **17-25 jours** de développement restant (formes déjà implémentées!).
 
 ## Vue d'Ensemble par Catégorie
 
@@ -178,7 +173,7 @@ Ces 3 fonctionnalités représentent environ **25-37 jours** de développement e
 | Texte & i18n | 1/3 | 2/3 | 0/3 | **50%** 🔨 |
 | Caméra & Effets | 1/2 | 1/2 | 0/2 | **75%** 🔨 |
 | Audio & Son | 0/1 | 0/1 | 1/1 | **0%** ❌ |
-| Formes & Vecteurs | 0/2 | 0/2 | 2/2 | **0%** ❌ |
+| Formes & Vecteurs | 1/2 | 1/2 | 0/2 | **80%** ✅ |
 | Performance | 0/1 | 1/1 | 0/1 | **40%** ⚠️ |
 | Export & I/O | 1/3 | 1/3 | 1/3 | **50%** 🔨 |
 | Tooling & DX | 1/3 | 1/3 | 1/3 | **40%** ⚠️ |
