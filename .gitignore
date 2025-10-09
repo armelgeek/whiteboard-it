@@ -13,3 +13,4 @@ build/
 # Test files
 test_images/
 test_*.json
+test_output/

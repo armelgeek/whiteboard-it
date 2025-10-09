@@ -5,6 +5,7 @@ Application de création d'animations de type "dessin sur tableau blanc" (whiteb
 ## Fonctionnalités
 
 - ✅ Génération de vidéos d'animation de dessin à partir d'images
+- ✅ **🆕 Effets de Particules** - Confettis, étincelles, explosions, fumée, magie (NOUVEAU!)
 - ✅ **🆕 Support Audio Complet** - Musique de fond, effets sonores, voix off, sons auto-générés (NOUVEAU!)
 - ✅ **🆕 Performance & Optimisation** - Preview mode, checkpoints, batch processing, memory optimization
 - ✅ **🆕 Timeline et Synchronisation Avancée** - Système complet de timeline avec keyframes, markers, sync points (NOUVEAU!)
@@ -25,6 +26,30 @@ Application de création d'animations de type "dessin sur tableau blanc" (whiteb
 - ✅ Export JSON des données d'animation
 - ✅ Support de plusieurs formats d'image
 - ✅ Animation avec main réaliste
+
+### 🎆 Effets de Particules (NOUVEAU!)
+
+Enrichissez vos animations avec des effets de particules dynamiques:
+
+- **Confettis 🎊** - Célébrations avec particules colorées qui tombent
+- **Étincelles ✨** - Étoiles scintillantes pour effets de brillance
+- **Explosions 💥** - Effets d'explosion radiale avec particules de feu
+- **Fumée 💨** - Traînées de fumée ou poussière en mouvement
+- **Magie 🪄** - Étincelles magiques pour texte et objets
+- **Systèmes personnalisés ⚙️** - Configuration complète pour effets uniques
+
+```bash
+# Confettis de célébration
+python whiteboard_animator.py image.jpg --config examples/particle_confetti.json --split-len 30
+
+# Étincelles magiques sur texte
+python whiteboard_animator.py --config examples/particle_magic.json --split-len 30
+
+# Explosion spectaculaire
+python whiteboard_animator.py image.jpg --config examples/particle_explosion.json --split-len 30
+```
+
+**Documentation complète:** Voir [PARTICLE_GUIDE.md](PARTICLE_GUIDE.md) et [PARTICLE_QUICKSTART.md](PARTICLE_QUICKSTART.md)
 
 ### 🆕 Support Audio (NOUVEAU!)
 

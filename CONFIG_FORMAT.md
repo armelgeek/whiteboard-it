@@ -147,6 +147,7 @@ Une slide peut contenir plusieurs images superposées (layers), chacune position
 | `entrance_animation` | object | Animation d'entrée (voir détails ci-dessous) | null |
 | `exit_animation` | object | Animation de sortie (voir détails ci-dessous) | null |
 | `morph` | object | Morphing depuis la couche précédente (voir détails ci-dessous) | null |
+| `particle_effect` | object | Effet de particules (voir détails ci-dessous) | null |
 
 ##### Mode de dessin (`mode`)
 
@@ -254,6 +255,70 @@ Effets appliqués après le dessin de la couche:
   "focus_position": {"x": 0.5, "y": 0.5}
 }
 ```
+
+##### Effets de particules (particle_effect)
+
+Les effets de particules enrichissent vos animations avec des effets visuels dynamiques.
+
+**Propriétés communes:**
+
+| Propriété | Type | Description | Par défaut |
+|-----------|------|-------------|------------|
+| `type` | string | Type d'effet: `confetti`, `sparkle`, `smoke`, `explosion`, `magic`, `custom` | Requis |
+| `position` | array | Position `[x, y]` de l'effet | Centre du canvas |
+| `duration` | float | Durée de l'effet en secondes | Dépend du type |
+
+**Types d'effets disponibles:**
+
+1. **Confetti** - Confettis de célébration
+   - `burst_count`: Nombre de confettis (défaut: 100)
+   
+2. **Sparkle** - Étoiles scintillantes
+   - `emission_rate`: Particules par seconde (défaut: 30)
+   
+3. **Smoke** - Traînée de fumée/poussière
+   - `emission_rate`: Particules par seconde (défaut: 20)
+   
+4. **Explosion** - Effet d'explosion
+   - `particle_count`: Nombre de particules (défaut: 50)
+   
+5. **Magic** - Étincelles magiques
+   - `emission_rate`: Particules par seconde (défaut: 15)
+   
+6. **Custom** - Système personnalisé (voir PARTICLE_GUIDE.md)
+
+**Exemples:**
+
+Confettis:
+```json
+"particle_effect": {
+  "type": "confetti",
+  "position": [360, 100],
+  "duration": 3.0,
+  "burst_count": 150
+}
+```
+
+Étincelles magiques:
+```json
+"particle_effect": {
+  "type": "magic",
+  "position": [360, 320],
+  "duration": 4.0,
+  "emission_rate": 25.0
+}
+```
+
+Explosion:
+```json
+"particle_effect": {
+  "type": "explosion",
+  "position": [360, 320],
+  "particle_count": 80
+}
+```
+
+**Documentation complète:** Voir [PARTICLE_GUIDE.md](PARTICLE_GUIDE.md) pour tous les détails et [PARTICLE_QUICKSTART.md](PARTICLE_QUICKSTART.md) pour un démarrage rapide.
 
 #### Exemple avec couches
 

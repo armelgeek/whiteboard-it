@@ -1,0 +1,51 @@
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 10,
+      "layers": [
+        {
+          "image_path": "demo/2.jpg",
+          "position": {"x": 0, "y": 0},
+          "z_index": 1,
+          "skip_rate": 10,
+          "mode": "draw",
+          "particle_effect": {
+            "type": "custom",
+            "duration": 4.0,
+            "frame_rate": 30,
+            "emitters": [
+              {
+                "position": [200, 320],
+                "emission_rate": 20.0,
+                "particle_lifetime": 2.5,
+                "direction": 45,
+                "spread": 30,
+                "speed": [80, 150],
+                "colors": [[255, 0, 0], [0, 255, 0], [0, 0, 255]],
+                "sizes": [5, 12],
+                "shapes": ["circle", "star"],
+                "gravity": 50,
+                "burst_mode": false
+              },
+              {
+                "position": [520, 320],
+                "emission_rate": 0,
+                "particle_lifetime": 2.0,
+                "direction": 90,
+                "spread": 360,
+                "speed": [100, 250],
+                "colors": [[255, 255, 0], [255, 0, 255], [0, 255, 255]],
+                "sizes": [4, 10],
+                "shapes": ["square", "triangle"],
+                "gravity": 100,
+                "burst_mode": true,
+                "burst_count": 60
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

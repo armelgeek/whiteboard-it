@@ -58,6 +58,17 @@ except ImportError:
     PYDUB_AVAILABLE = False
     print("⚠️ Warning: audio_manager module not available. Audio features disabled.")
 
+# Import particle system module
+try:
+    from particle_system import (
+        ParticleSystem, ParticleEmitter, Particle,
+        apply_particle_effect
+    )
+    PARTICLE_SYSTEM_AVAILABLE = True
+except ImportError:
+    PARTICLE_SYSTEM_AVAILABLE = False
+    print("⚠️ Warning: particle_system module not available. Particle effects disabled.")
+
 # from kivy.clock import Clock # COMMENTÉ: Remplacé par un appel direct pour CLI
 
 # --- Variables Globales ---
@@ -3330,6 +3341,36 @@ def draw_layered_whiteboard_animations(
                     # Update drawn_frame to last effect frame
                     if len(effect_frames) > 0:
                         variables.drawn_frame = effect_frames[-1].copy()
+            
+            # Apply particle effects if specified
+            particle_config = layer.get('particle_effect', None)
+            if particle_config and PARTICLE_SYSTEM_AVAILABLE:
+                effect_type = particle_config.get('type', 'confetti')
+                duration = particle_config.get('duration', 2.0)
+                particle_frames = int(duration * variables.frame_rate)
+                
+                print(f"    ✨ Applying particle effect: {effect_type} ({particle_frames} frames)")
+                
+                # Generate particle effect frames
+                for frame_idx in range(particle_frames):
+                    particle_frame = apply_particle_effect(
+                        variables.drawn_frame.copy(),
+                        particle_config,
+                        frame_idx,
+                        particle_frames,
+                        variables.frame_rate
+                    )
+                    
+                    if variables.watermark_path:
+                        particle_frame = apply_watermark(
+                            particle_frame,
+                            variables.watermark_path,
+                            variables.watermark_position,
+                            variables.watermark_opacity,
+                            variables.watermark_scale
+                        )
+                    variables.video_object.write(particle_frame)
+                    variables.frames_written += 1
             
             # Enregistrer les infos de la couche pour l'export JSON
             if variables.export_json:

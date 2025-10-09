@@ -245,6 +245,95 @@ python whiteboard_animator.py demo/placeholder.png demo/placeholder.png --config
 - Pauses avant transitions
 - Configuration complexe pour vidéos professionnelles
 
+### 5. Effets de particules 🎆
+
+#### particle_confetti.json
+Effet de confettis colorés pour célébrations.
+```bash
+python whiteboard_animator.py demo/1.jpg --config examples/particle_confetti.json --split-len 30
+```
+**Fonctionnalités démontrées:**
+- Explosion de confettis multicolores
+- Particules avec gravité (tombent vers le bas)
+- Formes variées (carrés, cercles, triangles)
+- Idéal pour moments de célébration
+
+#### particle_sparkles.json
+Étoiles scintillantes continues.
+```bash
+python whiteboard_animator.py demo/2.jpg --config examples/particle_sparkles.json --split-len 30
+```
+**Fonctionnalités démontrées:**
+- Émission continue de particules brillantes
+- Formes étoile et cercle
+- Pas de gravité (particules flottent)
+- Parfait pour effets de brillance
+
+#### particle_explosion.json
+Effet d'explosion spectaculaire.
+```bash
+python whiteboard_animator.py demo/3.png --config examples/particle_explosion.json --split-len 30
+```
+**Fonctionnalités démontrées:**
+- Explosion radiale instantanée
+- Couleurs de feu (orange, rouge, jaune)
+- Particules avec gravité
+- Idéal pour effets d'impact
+
+#### particle_magic.json
+✨ Étincelles magiques sur texte.
+```bash
+python whiteboard_animator.py demo/placeholder.png --config examples/particle_magic.json --split-len 30
+```
+**Fonctionnalités démontrées:**
+- Couche de texte avec effets magiques
+- Particules en forme d'étoiles
+- Flottent vers le haut (gravité négative)
+- Parfait pour texte enchanteur
+
+#### particle_smoke.json
+Traînée de fumée ou poussière.
+```bash
+python whiteboard_animator.py demo/1.jpg --config examples/particle_smoke.json --split-len 30
+```
+**Fonctionnalités démontrées:**
+- Particules grises/blanches
+- Mouvement ascendant
+- Effet de traînée
+- Idéal pour effets de mouvement
+
+#### particle_custom.json
+Système de particules personnalisé avancé.
+```bash
+python whiteboard_animator.py demo/2.jpg --config examples/particle_custom.json --split-len 30
+```
+**Fonctionnalités démontrées:**
+- Multiple émetteurs de particules
+- Configuration complète des paramètres
+- Combinaison de modes burst et continu
+- Couleurs, formes et gravité personnalisées
+- Contrôle total sur le comportement des particules
+
+**Configuration de particules:**
+```json
+"particle_effect": {
+  "type": "confetti",
+  "position": [360, 100],
+  "duration": 3.0,
+  "burst_count": 150
+}
+```
+
+**Types disponibles:**
+- `confetti` - Confettis de célébration
+- `sparkle` - Étoiles scintillantes
+- `smoke` - Traînée de fumée/poussière
+- `explosion` - Effet d'explosion
+- `magic` - Étincelles magiques
+- `custom` - Système personnalisé
+
+Voir **[PARTICLE_GUIDE.md](../PARTICLE_GUIDE.md)** pour le guide complet et **[PARTICLE_QUICKSTART.md](../PARTICLE_QUICKSTART.md)** pour démarrer rapidement.
+
 ## Aperçu rapide des concepts
 
 ### Concepts de base
@@ -263,6 +352,7 @@ python whiteboard_animator.py demo/placeholder.png demo/placeholder.png --config
 - ✅ **Morphing** : Transition fluide entre couches
 - ✅ **Contrôles de caméra** : Zoom et focus sur zones spécifiques
 - ✅ **Animations post-dessin** : Effets de zoom après le dessin
+- ✅ **Effets de particules** : Confettis, étincelles, explosions, fumée, magie
 
 ## Guide de démarrage
 
@@ -281,6 +371,14 @@ python whiteboard_animator.py demo/placeholder.png demo/placeholder.png --config
 8. **morphing_layers.json** - Transitions fluides entre images
 9. **camera_zoom_basic.json** - Contrôles de caméra de base
 10. **complete_showcase.json** - Tous les concepts combinés
+
+### Pour des effets spectaculaires (particules) 🎆
+11. **particle_confetti.json** - Confettis de célébration
+12. **particle_sparkles.json** - Étoiles scintillantes
+13. **particle_explosion.json** - Effet d'explosion
+14. **particle_magic.json** - Étincelles magiques sur texte
+15. **particle_smoke.json** - Traînée de fumée
+16. **particle_custom.json** - Système personnalisé avancé
 
 ## Scripts d'analyse
 
