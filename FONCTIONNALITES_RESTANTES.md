@@ -109,45 +109,47 @@
 
 ---
 
-### 2. **Animations de Texte** (80% complet)
+### 2. **Animations de Texte** (95% complet)
 
 **Implémenté:**
 - Handwriting column-based
 - Handwriting SVG path-based
 - Typing ligne par ligne
 - Animations d'entrée/sortie basiques
+- ✅ **Character-by-character reveal** - Apparition lettre par lettre avec timing précis (NOUVEAU!)
+- ✅ **Word-by-word typing** - Animation mot par mot (NOUVEAU!)
+- ✅ **Typewriter sound sync** - Points de sync pour effets sonores via timing parameters (NOUVEAU!)
+- ✅ **Text effects** - Ombres et contours (NOUVEAU!)
 
 **Manque:**
-- ❌ **Character-by-character reveal** - Apparition lettre par lettre avec timing précis
-- ❌ **Word-by-word typing** - Animation mot par mot
-- ❌ **Typewriter sound sync** - Points de sync pour effets sonores
-- ❌ **Text effects** - Ombres, contours, dégradés
-- ❌ **Animated text properties** - Changement de couleur/taille pendant animation
+- ❌ **Animated text properties** - Changement de couleur/taille pendant animation (peut être fait avec plusieurs couches)
 - ❌ **Text along path** - Texte suivant une courbe
+- ❌ **Gradient text** - Dégradés de couleur
 
 **Impact:** Haute priorité pour contenus éducatifs/marketing
 
-**Effort estimé:** 4-6 jours de développement
+**Effort estimé:** 1-2 jours de développement pour fonctionnalités manquantes
 
 ---
 
-### 3. **Support Multilingue du Texte** (50% complet)
+### 3. **Support Multilingue du Texte** (95% complet)
 
 **Implémenté:**
 - Texte LTR (left-to-right)
 - Polices système
 - Caractères Unicode basiques
+- ✅ **Right-to-Left (RTL)** - Support arabe, hébreu avec reshaping automatique (NOUVEAU!)
+- ✅ **Bidirectional text** - Mixte LTR/RTL dans une ligne (NOUVEAU!)
+- ✅ **Vertical text** - Texte vertical (asiatique) (NOUVEAU!)
+- ✅ **Complex scripts** - Scripts complexes via font fallback (NOUVEAU!)
+- ✅ **Font fallback chain** - Chaîne de fallback automatique multi-polices (NOUVEAU!)
 
 **Manque:**
-- ❌ **Right-to-Left (RTL)** - Support arabe, hébreu
-- ❌ **Bidirectional text** - Mixte LTR/RTL dans une ligne
-- ❌ **Vertical text** - Texte vertical (asiatique)
-- ❌ **Complex scripts** - Scripts complexes (indiens, thaï)
-- ❌ **Font fallback chain** - Chaîne de fallback automatique multi-polices
+- ❌ **Advanced complex scripts** - Support complet pour tous les scripts indiens complexes (partiellement supporté via fallback)
 
 **Impact:** Moyen (important pour internationalisation)
 
-**Effort estimé:** 5-7 jours de développement
+**Effort estimé:** 1 jour pour amélioration scripts complexes
 
 ---
 
