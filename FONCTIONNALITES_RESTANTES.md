@@ -141,6 +141,22 @@
 
 ---
 
+### 4. **Animation de Chemins (Path Animation)** (100% complet) ✅
+
+**Implémenté:**
+- ✅ **Bezier curve paths** - Trajectoires courbes (cubic et quadratic)
+- ✅ **Object following path** - Objet suit un chemin
+- ✅ **Path drawing** - Dessin progressif d'un chemin
+- ✅ **Motion along spline** - Mouvement le long d'une spline (Catmull-Rom)
+- ✅ **Speed control** - Contrôle de vitesse sur le chemin (ease_in, ease_out, ease_in_out, linear)
+- ✅ **Orient to path** - Orientation selon trajectoire
+
+**Impact:** Moyen-Haute (pour animations complexes)
+
+**Statut:** COMPLET - Toutes les fonctionnalités implémentées
+
+---
+
 ### 3. **Support Multilingue du Texte** (95% complet)
 
 **Implémenté:**
@@ -251,25 +267,7 @@
 
 ---
 
-### 5. **Animation de Chemins (Path Animation)** (0% implémenté)
-
-**Description:** Animation d'objets suivant des trajectoires personnalisées.
-
-**Fonctionnalités manquantes:**
-- ❌ **Bezier curve paths** - Trajectoires courbes
-- ❌ **Object following path** - Objet suit un chemin
-- ❌ **Path drawing** - Dessin progressif d'un chemin
-- ❌ **Motion along spline** - Mouvement le long d'une spline
-- ❌ **Speed control** - Contrôle de vitesse sur le chemin
-- ❌ **Orient to path** - Orientation selon trajectoire
-
-**Impact:** Moyen-Haute (pour animations complexes)
-
-**Effort estimé:** 6-8 jours de développement
-
----
-
-### 6. **Templates et Presets** (0% implémenté)
+### 5. **Templates et Presets** (0% implémenté)
 
 **Description:** Configurations pré-définies pour cas d'usage courants.
 
