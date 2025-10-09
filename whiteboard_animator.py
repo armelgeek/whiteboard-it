@@ -1046,49 +1046,53 @@ def apply_push_animation_with_hand(frame, animation_config, frame_index, total_f
     if frame_index >= anim_frames:
         return frame
     
-    progress = frame_index / anim_frames
+    # Apply easing for natural motion (ease_out gives a nice pushing deceleration)
+    raw_progress = frame_index / anim_frames
+    progress = easing_function(raw_progress, 'ease_out')
+    
     h, w = frame.shape[:2]
     result = np.ones_like(frame) * 255
     
-    # Calculate object position based on progress
+    # Calculate object position based on eased progress
     if direction == 'left':
-        # Push from left side
+        # Push from left side - element slides in from left
         offset = int(w * (1 - progress))
         if offset < w:
             result[:, offset:] = frame[:, :w-offset]
-        # Position hand at the left edge of the object
-        hand_x = max(0, offset - int(hand_wd * 0.3))
+        # Hand follows the element, positioned at its leading edge
+        # Hand starts off-screen and moves with the element
+        hand_x = max(0, offset - int(hand_wd * 0.7))  # More overlap for better "pushing" look
         hand_y = int(h / 2 - hand_ht / 2)
     elif direction == 'right':
-        # Push from right side
+        # Push from right side - element slides in from right
         offset = int(w * (1 - progress))
         if offset < w:
             result[:, :w-offset] = frame[:, offset:]
-        # Position hand at the right edge of the object
-        hand_x = min(w - hand_wd, w - offset)
+        # Hand positioned at the right side, pushing left
+        hand_x = min(w - hand_wd, w - offset + int(hand_wd * 0.2))  # Slight offset for visibility
         hand_y = int(h / 2 - hand_ht / 2)
     elif direction == 'top':
-        # Push from top
+        # Push from top - element slides in from top
         offset = int(h * (1 - progress))
         if offset < h:
             result[offset:, :] = frame[:h-offset, :]
-        # Position hand at the top edge of the object
+        # Hand positioned at top, pushing down
         hand_x = int(w / 2 - hand_wd / 2)
-        hand_y = max(0, offset - int(hand_ht * 0.3))
+        hand_y = max(0, offset - int(hand_ht * 0.7))  # More overlap for better "pushing" look
     elif direction == 'bottom':
-        # Push from bottom
+        # Push from bottom - element slides in from bottom
         offset = int(h * (1 - progress))
         if offset < h:
             result[:h-offset, :] = frame[offset:, :]
-        # Position hand at the bottom edge of the object
+        # Hand positioned at bottom, pushing up
         hand_x = int(w / 2 - hand_wd / 2)
-        hand_y = min(h - hand_ht, h - offset)
+        hand_y = min(h - hand_ht, h - offset + int(hand_ht * 0.2))  # Slight offset for visibility
     else:
         # Default to left if direction not recognized
         offset = int(w * (1 - progress))
         if offset < w:
             result[:, offset:] = frame[:, :w-offset]
-        hand_x = max(0, offset - int(hand_wd * 0.3))
+        hand_x = max(0, offset - int(hand_wd * 0.7))
         hand_y = int(h / 2 - hand_ht / 2)
     
     # Draw hand on the result frame
