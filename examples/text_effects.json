@@ -1,0 +1,77 @@
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 8,
+      "layers": [
+        {
+          "type": "text",
+          "z_index": 1,
+          "skip_rate": 10,
+          "text_config": {
+            "text": "Bold Text with Outline",
+            "font": "DejaVuSans",
+            "size": 64,
+            "color": "#FFFF00",
+            "style": "bold",
+            "align": "center",
+            "animation_type": "character_by_character",
+            "text_effects": {
+              "outline": {
+                "width": 2,
+                "color": "#000000"
+              }
+            },
+            "position": {"x": 0, "y": 80}
+          }
+        },
+        {
+          "type": "text",
+          "z_index": 2,
+          "skip_rate": 12,
+          "text_config": {
+            "text": "Text with Shadow Effect",
+            "font": "DejaVuSans",
+            "size": 52,
+            "color": "#FF0066",
+            "style": "bold",
+            "align": "center",
+            "animation_type": "word_by_word",
+            "text_effects": {
+              "shadow": {
+                "offset": [4, 4],
+                "color": "#333333"
+              }
+            },
+            "position": {"x": 0, "y": 220}
+          }
+        },
+        {
+          "type": "text",
+          "z_index": 3,
+          "skip_rate": 8,
+          "text_config": {
+            "text": "Combined Effects!",
+            "font": "DejaVuSans",
+            "size": 72,
+            "color": "#00CC66",
+            "style": "bold",
+            "align": "center",
+            "animation_type": "handwriting",
+            "text_effects": {
+              "shadow": {
+                "offset": [3, 3],
+                "color": "#000000"
+              },
+              "outline": {
+                "width": 1,
+                "color": "#FFFFFF"
+              }
+            },
+            "position": {"x": 0, "y": 380}
+          }
+        }
+      ]
+    }
+  ]
+}

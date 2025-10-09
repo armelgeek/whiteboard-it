@@ -1,0 +1,64 @@
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 10,
+      "layers": [
+        {
+          "type": "text",
+          "z_index": 1,
+          "skip_rate": 8,
+          "text_config": {
+            "text": "Character by Character Animation",
+            "font": "DejaVuSans",
+            "size": 48,
+            "color": "#0066CC",
+            "style": "bold",
+            "align": "center",
+            "animation_type": "character_by_character",
+            "char_duration_frames": 5,
+            "pause_after_char": 2,
+            "pause_after_word": 10,
+            "position": {"x": 0, "y": 100}
+          }
+        },
+        {
+          "type": "text",
+          "z_index": 2,
+          "skip_rate": 12,
+          "text_config": {
+            "text": "Word by word typing animation",
+            "font": "DejaVuSans",
+            "size": 36,
+            "color": "#CC6600",
+            "animation_type": "word_by_word",
+            "word_duration_frames": 8,
+            "pause_after_word": 5,
+            "position": {"x": 50, "y": 250}
+          }
+        },
+        {
+          "type": "text",
+          "z_index": 3,
+          "skip_rate": 15,
+          "text_config": {
+            "text": "With Shadow Effect!",
+            "font": "DejaVuSans",
+            "size": 42,
+            "color": "#FF0066",
+            "style": "bold",
+            "align": "center",
+            "animation_type": "handwriting",
+            "text_effects": {
+              "shadow": {
+                "offset": [3, 3],
+                "color": "#888888"
+              }
+            },
+            "position": {"x": 0, "y": 380}
+          }
+        }
+      ]
+    }
+  ]
+}

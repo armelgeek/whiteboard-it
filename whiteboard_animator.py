@@ -12,6 +12,16 @@ import argparse
 from PIL import Image, ImageDraw, ImageFont
 from fontTools.ttLib import TTFont
 from fontTools.pens.recordingPen import RecordingPen
+
+# Import libraries for multilingual text support
+try:
+    from arabic_reshaper import reshape
+    from bidi.algorithm import get_display
+    BIDI_SUPPORT = True
+except ImportError:
+    BIDI_SUPPORT = False
+    print("⚠️ Warning: arabic-reshaper and python-bidi not installed. RTL text support will be limited.")
+
 # from kivy.clock import Clock # COMMENTÉ: Remplacé par un appel direct pour CLI
 
 # --- Variables Globales ---
@@ -40,7 +50,7 @@ DEFAULT_CRF = 18  # Lower = better quality (0-51, 18 is visually lossless)
 # --- Classes et Fonctions ---
 
 def render_text_to_image(text_config, target_width, target_height):
-    """Render text to an image using PIL/Pillow.
+    """Render text to an image using PIL/Pillow with advanced multilingual and effect support.
     
     Args:
         text_config: Dictionary with text configuration:
@@ -52,6 +62,10 @@ def render_text_to_image(text_config, target_width, target_height):
             - line_height: Line spacing multiplier (default: 1.2)
             - align: "left", "center", or "right" (default: "left")
             - position: Optional dict with x, y for absolute positioning
+            - direction: "ltr", "rtl", "auto" (default: "auto" - auto-detect)
+            - vertical: True for vertical text (default: False)
+            - text_effects: Dict with effects like shadow, outline, gradient
+            - font_fallbacks: List of fallback fonts for complex scripts
         target_width: Canvas width
         target_height: Canvas height
         
@@ -67,6 +81,10 @@ def render_text_to_image(text_config, target_width, target_height):
     line_height_multiplier = text_config.get('line_height', 1.2)
     align = text_config.get('align', 'left')
     position = text_config.get('position', None)
+    direction = text_config.get('direction', 'auto')
+    vertical = text_config.get('vertical', False)
+    text_effects = text_config.get('text_effects', {})
+    font_fallbacks = text_config.get('font_fallbacks', [])
     
     # Convert color to tuple if it's a list
     if isinstance(color, list):
@@ -87,67 +105,113 @@ def render_text_to_image(text_config, target_width, target_height):
             }
             color = color_map.get(color.lower(), (0, 0, 0))
     
+    # Process RTL and bidirectional text
+    processed_text = text
+    if direction == 'rtl' or (direction == 'auto' and BIDI_SUPPORT):
+        # Auto-detect RTL text (Arabic, Hebrew, etc.)
+        if BIDI_SUPPORT and direction != 'ltr':
+            try:
+                # Check if text contains RTL characters
+                has_rtl = any(
+                    '\u0590' <= char <= '\u08FF' or  # Hebrew and Arabic blocks
+                    '\u200F' == char or  # RTL mark
+                    '\uFB50' <= char <= '\uFDFF' or  # Arabic presentation forms
+                    '\uFE70' <= char <= '\uFEFF'     # Arabic presentation forms B
+                    for char in text
+                )
+                
+                if has_rtl or direction == 'rtl':
+                    # Reshape Arabic text (connect letters)
+                    reshaped_text = reshape(text)
+                    # Apply bidirectional algorithm
+                    processed_text = get_display(reshaped_text)
+            except Exception as e:
+                print(f"  ⚠️ Warning: RTL text processing failed: {e}")
+                processed_text = text
+    
     # Create a white canvas
     img = Image.new('RGB', (target_width, target_height), color='white')
     draw = ImageDraw.Draw(img)
     
-    # Load font with style
+    # Load font with style and fallbacks
     font = None
-    try:
-        # Try to load the font with style
-        if style == 'bold':
-            # Try common bold font variations
-            for font_variant in [f"{font_name} Bold", f"{font_name}-Bold", f"{font_name}bd"]:
+    fonts_to_try = [(font_name, style)]
+    
+    # Add fallback fonts
+    for fallback_font in font_fallbacks:
+        fonts_to_try.append((fallback_font, 'normal'))
+    
+    # Add common system fonts as last resort
+    fonts_to_try.extend([
+        ("DejaVuSans", "normal"),
+        ("Arial", "normal"),
+        ("NotoSans", "normal"),
+        ("NotoSansArabic", "normal"),  # For Arabic
+        ("NotoSansHebrew", "normal"),  # For Hebrew
+        ("NotoSansCJK", "normal"),     # For Chinese/Japanese/Korean
+    ])
+    
+    # Load font with style
+    for font_name_try, font_style in fonts_to_try:
+        if font is not None:
+            break
+            
+        try:
+            # Try to load the font with style
+            if font_style == 'bold' or (font_style == 'normal' and style == 'bold'):
+                # Try common bold font variations
+                for font_variant in [f"{font_name_try} Bold", f"{font_name_try}-Bold", f"{font_name_try}bd"]:
+                    try:
+                        font = ImageFont.truetype(font_variant, font_size)
+                        break
+                    except:
+                        pass
+            elif font_style == 'italic' or (font_style == 'normal' and style == 'italic'):
+                # Try common italic font variations
+                for font_variant in [f"{font_name_try} Italic", f"{font_name_try}-Italic", f"{font_name_try}i"]:
+                    try:
+                        font = ImageFont.truetype(font_variant, font_size)
+                        break
+                    except:
+                        pass
+            elif font_style == 'bold_italic' or (font_style == 'normal' and style == 'bold_italic'):
+                # Try common bold italic font variations
+                for font_variant in [f"{font_name_try} Bold Italic", f"{font_name_try}-BoldItalic", f"{font_name_try}bi"]:
+                    try:
+                        font = ImageFont.truetype(font_variant, font_size)
+                        break
+                    except:
+                        pass
+            
+            # If no styled font found, try base font
+            if font is None:
+                font = ImageFont.truetype(font_name_try, font_size)
+        except:
+            # Try common system font paths
+            common_fonts = [
+                f"{font_name_try}.ttf",
+                f"/usr/share/fonts/truetype/dejavu/{font_name_try}.ttf",
+                f"/usr/share/fonts/truetype/liberation/Liberation{font_name_try}-Regular.ttf",
+                f"/usr/share/fonts/truetype/noto/{font_name_try}-Regular.ttf",
+                f"C:\\Windows\\Fonts\\{font_name_try}.ttf"
+            ]
+            for font_path in common_fonts:
                 try:
-                    font = ImageFont.truetype(font_variant, font_size)
-                    break
-                except:
-                    pass
-        elif style == 'italic':
-            # Try common italic font variations
-            for font_variant in [f"{font_name} Italic", f"{font_name}-Italic", f"{font_name}i"]:
-                try:
-                    font = ImageFont.truetype(font_variant, font_size)
-                    break
-                except:
-                    pass
-        elif style == 'bold_italic':
-            # Try common bold italic font variations
-            for font_variant in [f"{font_name} Bold Italic", f"{font_name}-BoldItalic", f"{font_name}bi"]:
-                try:
-                    font = ImageFont.truetype(font_variant, font_size)
+                    font = ImageFont.truetype(font_path, font_size)
                     break
                 except:
                     pass
         
-        # If no styled font found, try base font
-        if font is None:
-            font = ImageFont.truetype(font_name, font_size)
-    except:
-        # If font not found, try common system fonts
-        common_fonts = [
-            "DejaVuSans.ttf", "Arial.ttf", "arial.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-            "C:\\Windows\\Fonts\\arial.ttf"
-        ]
-        for font_path in common_fonts:
-            try:
-                font = ImageFont.truetype(font_path, font_size)
-                break
-            except:
-                pass
-        
-        # Fall back to default font if nothing works
-        if font is None:
-            try:
-                font = ImageFont.load_default()
-            except:
-                # Last resort: use default PIL font
-                font = ImageFont.load_default()
+    # Fall back to default font if nothing works
+    if font is None:
+        try:
+            font = ImageFont.load_default()
+        except:
+            # Last resort: use default PIL font
+            font = ImageFont.load_default()
     
     # Split text into lines
-    lines = text.split('\n')
+    lines = processed_text.split('\n')
     
     # Calculate line height
     try:
@@ -158,7 +222,11 @@ def render_text_to_image(text_config, target_width, target_height):
         line_height = int(font_size * line_height_multiplier)
     
     # Calculate total text height
-    total_height = len(lines) * line_height
+    if vertical:
+        # For vertical text, rotate the calculation
+        total_height = max(len(line) for line in lines) * line_height
+    else:
+        total_height = len(lines) * line_height
     
     # Determine starting y position
     if position and 'y' in position:
@@ -166,6 +234,11 @@ def render_text_to_image(text_config, target_width, target_height):
     else:
         # Center vertically if no position specified
         y = (target_height - total_height) // 2
+    
+    # Extract text effects
+    shadow = text_effects.get('shadow', None)
+    outline = text_effects.get('outline', None)
+    gradient = text_effects.get('gradient', None)
     
     # Draw each line
     for line in lines:
@@ -186,9 +259,65 @@ def render_text_to_image(text_config, target_width, target_height):
         else:  # left
             x = 20  # 20px margin
         
-        # Draw the text
-        draw.text((x, y), line, fill=color, font=font)
-        y += line_height
+        # Apply text effects
+        if vertical:
+            # For vertical text, draw character by character vertically
+            current_y = y
+            for char in line:
+                # Draw shadow if specified
+                if shadow:
+                    shadow_offset = shadow.get('offset', (2, 2))
+                    shadow_color = shadow.get('color', (128, 128, 128))
+                    if isinstance(shadow_color, str):
+                        if shadow_color.startswith('#'):
+                            shadow_color = tuple(int(shadow_color[i:i+2], 16) for i in (1, 3, 5))
+                    draw.text((x + shadow_offset[0], current_y + shadow_offset[1]), 
+                             char, fill=shadow_color, font=font)
+                
+                # Draw outline if specified
+                if outline:
+                    outline_width = outline.get('width', 1)
+                    outline_color = outline.get('color', (0, 0, 0))
+                    if isinstance(outline_color, str):
+                        if outline_color.startswith('#'):
+                            outline_color = tuple(int(outline_color[i:i+2], 16) for i in (1, 3, 5))
+                    # Draw outline by drawing text at offsets
+                    for dx in range(-outline_width, outline_width + 1):
+                        for dy in range(-outline_width, outline_width + 1):
+                            if dx != 0 or dy != 0:
+                                draw.text((x + dx, current_y + dy), char, fill=outline_color, font=font)
+                
+                # Draw the main text
+                draw.text((x, current_y), char, fill=color, font=font)
+                current_y += line_height
+        else:
+            # Horizontal text (normal)
+            # Draw shadow if specified
+            if shadow:
+                shadow_offset = shadow.get('offset', (2, 2))
+                shadow_color = shadow.get('color', (128, 128, 128))
+                if isinstance(shadow_color, str):
+                    if shadow_color.startswith('#'):
+                        shadow_color = tuple(int(shadow_color[i:i+2], 16) for i in (1, 3, 5))
+                draw.text((x + shadow_offset[0], y + shadow_offset[1]), 
+                         line, fill=shadow_color, font=font)
+            
+            # Draw outline if specified
+            if outline:
+                outline_width = outline.get('width', 1)
+                outline_color = outline.get('color', (0, 0, 0))
+                if isinstance(outline_color, str):
+                    if outline_color.startswith('#'):
+                        outline_color = tuple(int(outline_color[i:i+2], 16) for i in (1, 3, 5))
+                # Draw outline by drawing text at offsets
+                for dx in range(-outline_width, outline_width + 1):
+                    for dy in range(-outline_width, outline_width + 1):
+                        if dx != 0 or dy != 0:
+                            draw.text((x + dx, y + dy), line, fill=outline_color, font=font)
+            
+            # Draw the main text
+            draw.text((x, y), line, fill=color, font=font)
+            y += line_height
     
     # Convert PIL Image to OpenCV format (BGR)
     img_array = np.array(img)
@@ -1412,6 +1541,284 @@ def generate_morph_frames(frame1, frame2, num_frames):
     return morph_frames
 
 
+def draw_character_by_character_text(
+    variables, skip_rate=5, mode='draw',
+    eraser=None, eraser_mask_inv=None, eraser_ht=0, eraser_wd=0,
+    text_config=None
+):
+    """
+    Draw text character-by-character with precise timing control.
+    Each character appears completely before moving to the next.
+    
+    Args:
+        variables: AllVariables object with image data
+        skip_rate: Frame skip rate for animation speed (frames per character)
+        mode: 'draw' for normal drawing, 'eraser' for eraser mode, 'static' for no animation
+        eraser: Eraser image (for eraser mode)
+        eraser_mask_inv: Inverted eraser mask (for eraser mode)
+        eraser_ht, eraser_wd: Eraser dimensions
+        text_config: Text configuration with timing parameters
+    """
+    if mode == 'eraser':
+        variables.drawn_frame[:, :, :] = variables.img
+    
+    # Get configuration parameters
+    pause_after_char = 0
+    pause_after_word = 0
+    char_duration_frames = skip_rate  # Default frames per character
+    
+    if text_config:
+        pause_after_char = text_config.get('pause_after_char', 0)
+        pause_after_word = text_config.get('pause_after_word', 0)
+        char_duration_frames = text_config.get('char_duration_frames', skip_rate)
+    
+    # Convert to grayscale and threshold to find text pixels
+    img_thresh = variables.img_thresh.copy()
+    height, width = img_thresh.shape
+    
+    # Use the original render_text_to_image to get character positions
+    # We need to render each character separately and track positions
+    text = text_config.get('text', '') if text_config else ''
+    if not text:
+        return
+    
+    # Process text character by character
+    chars_to_draw = []
+    for char in text:
+        if char == '\n':
+            chars_to_draw.append({'char': char, 'is_newline': True})
+        elif char.isspace():
+            chars_to_draw.append({'char': char, 'is_space': True})
+        else:
+            chars_to_draw.append({'char': char, 'is_char': True})
+    
+    # Find columns with text content for each character region
+    # We'll divide the width by approximate character count
+    columns_with_text = []
+    for x in range(width):
+        column = img_thresh[:, x]
+        if np.any(column < 250):  # Has dark pixels (text)
+            columns_with_text.append(x)
+    
+    if len(columns_with_text) == 0:
+        return
+    
+    # Group columns by character based on spacing
+    # Find gaps in columns to identify character boundaries
+    char_column_groups = []
+    if columns_with_text:
+        current_group = [columns_with_text[0]]
+        for i in range(1, len(columns_with_text)):
+            if columns_with_text[i] - columns_with_text[i-1] > 3:  # Gap detected
+                char_column_groups.append(current_group)
+                current_group = [columns_with_text[i]]
+            else:
+                current_group.append(columns_with_text[i])
+        char_column_groups.append(current_group)
+    
+    # Draw each character group
+    counter = 0
+    char_idx = 0
+    is_word_start = True
+    
+    for group_idx, column_group in enumerate(char_column_groups):
+        # Draw all columns in this character group
+        for x in column_group:
+            column = img_thresh[:, x]
+            text_pixels = np.where(column < 250)[0]
+            
+            if len(text_pixels) > 0:
+                # Group consecutive pixels into segments
+                segments = []
+                start_y = text_pixels[0]
+                prev_y = text_pixels[0]
+                
+                for y in text_pixels[1:]:
+                    if y - prev_y > 3:  # Gap detected
+                        segments.append((start_y, prev_y))
+                        start_y = y
+                    prev_y = y
+                segments.append((start_y, prev_y))
+                
+                # Draw all segments in this column
+                for y_start, y_end in segments:
+                    if mode == 'eraser':
+                        variables.drawn_frame[y_start:y_end+1, x] = 255
+                    else:
+                        variables.drawn_frame[y_start:y_end+1, x] = variables.img[y_start:y_end+1, x]
+        
+        # After character is drawn, position hand and write frames
+        if column_group:
+            hand_coord_x = column_group[len(column_group)//2]
+            # Find middle Y for this character
+            column = img_thresh[:, hand_coord_x]
+            text_pixels = np.where(column < 250)[0]
+            hand_coord_y = text_pixels[len(text_pixels)//2] if len(text_pixels) > 0 else height // 2
+            
+            # Draw hand or eraser
+            if mode == 'static':
+                drawn_frame_with_hand = variables.drawn_frame.copy()
+            elif mode == 'eraser' and eraser is not None:
+                drawn_frame_with_hand = draw_eraser_on_img(
+                    variables.drawn_frame.copy(), eraser.copy(),
+                    hand_coord_x, hand_coord_y,
+                    eraser_mask_inv.copy(), eraser_ht, eraser_wd,
+                    variables.resize_ht, variables.resize_wd
+                )
+            else:
+                drawn_frame_with_hand = draw_hand_on_img(
+                    variables.drawn_frame.copy(), variables.hand.copy(),
+                    hand_coord_x, hand_coord_y,
+                    variables.hand_mask_inv.copy(),
+                    variables.hand_ht, variables.hand_wd,
+                    variables.resize_ht, variables.resize_wd
+                )
+            
+            # Write frames for this character
+            for _ in range(char_duration_frames):
+                if variables.watermark_path:
+                    drawn_frame_with_hand = apply_watermark(
+                        drawn_frame_with_hand, variables.watermark_path,
+                        variables.watermark_position, variables.watermark_opacity,
+                        variables.watermark_scale
+                    )
+                variables.video_object.write(drawn_frame_with_hand)
+                variables.frames_written += 1
+            
+            # Pause after character if configured
+            if pause_after_char > 0:
+                for _ in range(pause_after_char):
+                    variables.video_object.write(drawn_frame_with_hand)
+                    variables.frames_written += 1
+            
+            # Check if word ended (next character is space or we're at end)
+            char_idx += 1
+            if char_idx < len(chars_to_draw):
+                if chars_to_draw[char_idx].get('is_space') or chars_to_draw[char_idx].get('is_newline'):
+                    # Word ended, apply pause
+                    if pause_after_word > 0:
+                        for _ in range(pause_after_word):
+                            variables.video_object.write(drawn_frame_with_hand)
+                            variables.frames_written += 1
+
+
+def draw_word_by_word_text(
+    variables, skip_rate=5, mode='draw',
+    eraser=None, eraser_mask_inv=None, eraser_ht=0, eraser_wd=0,
+    text_config=None
+):
+    """
+    Draw text word-by-word with typing animation.
+    Each word appears completely before moving to the next.
+    
+    Args:
+        variables: AllVariables object with image data
+        skip_rate: Frame skip rate for animation speed (frames per word)
+        mode: 'draw' for normal drawing, 'eraser' for eraser mode
+        text_config: Text configuration with timing parameters
+    """
+    if mode == 'eraser':
+        variables.drawn_frame[:, :, :] = variables.img
+    
+    # Get configuration parameters
+    pause_after_word = text_config.get('pause_after_word', 0) if text_config else 0
+    word_duration_frames = text_config.get('word_duration_frames', skip_rate) if text_config else skip_rate
+    
+    # Convert to grayscale and threshold
+    img_thresh = variables.img_thresh.copy()
+    height, width = img_thresh.shape
+    
+    # Find all columns with text
+    columns_with_text = []
+    for x in range(width):
+        column = img_thresh[:, x]
+        if np.any(column < 250):
+            columns_with_text.append(x)
+    
+    if not columns_with_text:
+        return
+    
+    # Group columns by words (larger gaps between words)
+    word_column_groups = []
+    if columns_with_text:
+        current_group = [columns_with_text[0]]
+        for i in range(1, len(columns_with_text)):
+            # Larger gap threshold for word boundaries (e.g., 15 pixels)
+            if columns_with_text[i] - columns_with_text[i-1] > 15:
+                word_column_groups.append(current_group)
+                current_group = [columns_with_text[i]]
+            else:
+                current_group.append(columns_with_text[i])
+        word_column_groups.append(current_group)
+    
+    # Draw each word group
+    for word_idx, word_columns in enumerate(word_column_groups):
+        # Draw all columns in this word
+        for x in word_columns:
+            column = img_thresh[:, x]
+            text_pixels = np.where(column < 250)[0]
+            
+            if len(text_pixels) > 0:
+                segments = []
+                start_y = text_pixels[0]
+                prev_y = text_pixels[0]
+                
+                for y in text_pixels[1:]:
+                    if y - prev_y > 3:
+                        segments.append((start_y, prev_y))
+                        start_y = y
+                    prev_y = y
+                segments.append((start_y, prev_y))
+                
+                for y_start, y_end in segments:
+                    if mode == 'eraser':
+                        variables.drawn_frame[y_start:y_end+1, x] = 255
+                    else:
+                        variables.drawn_frame[y_start:y_end+1, x] = variables.img[y_start:y_end+1, x]
+        
+        # Position hand at end of word and write frames
+        if word_columns:
+            hand_coord_x = word_columns[-1]
+            column = img_thresh[:, hand_coord_x]
+            text_pixels = np.where(column < 250)[0]
+            hand_coord_y = text_pixels[len(text_pixels)//2] if len(text_pixels) > 0 else height // 2
+            
+            if mode == 'static':
+                drawn_frame_with_hand = variables.drawn_frame.copy()
+            elif mode == 'eraser' and eraser is not None:
+                drawn_frame_with_hand = draw_eraser_on_img(
+                    variables.drawn_frame.copy(), eraser.copy(),
+                    hand_coord_x, hand_coord_y,
+                    eraser_mask_inv.copy(), eraser_ht, eraser_wd,
+                    variables.resize_ht, variables.resize_wd
+                )
+            else:
+                drawn_frame_with_hand = draw_hand_on_img(
+                    variables.drawn_frame.copy(), variables.hand.copy(),
+                    hand_coord_x, hand_coord_y,
+                    variables.hand_mask_inv.copy(),
+                    variables.hand_ht, variables.hand_wd,
+                    variables.resize_ht, variables.resize_wd
+                )
+            
+            # Write frames for this word
+            for _ in range(word_duration_frames):
+                if variables.watermark_path:
+                    drawn_frame_with_hand = apply_watermark(
+                        drawn_frame_with_hand, variables.watermark_path,
+                        variables.watermark_position, variables.watermark_opacity,
+                        variables.watermark_scale
+                    )
+                variables.video_object.write(drawn_frame_with_hand)
+                variables.frames_written += 1
+            
+            # Pause after word
+            if pause_after_word > 0:
+                for _ in range(pause_after_word):
+                    variables.video_object.write(drawn_frame_with_hand)
+                    variables.frames_written += 1
+
+
 def draw_text_handwriting(
     variables, skip_rate=5, mode='draw',
     eraser=None, eraser_mask_inv=None, eraser_ht=0, eraser_wd=0
@@ -2107,10 +2514,31 @@ def draw_layered_whiteboard_animations(
                 # Use text-specific drawing for text layers, tile-based for images
                 if layer_type == 'text':
                     text_config = layer.get('text_config', {})
-                    # Check if user explicitly wants SVG path-based drawing
-                    use_svg_paths = text_config.get('use_svg_paths', False)
+                    text_animation_type = text_config.get('animation_type', 'handwriting')
                     
-                    if use_svg_paths:
+                    if text_animation_type == 'character_by_character':
+                        draw_character_by_character_text(
+                            variables=layer_vars,
+                            skip_rate=layer_skip_rate,
+                            mode='eraser',
+                            eraser=eraser,
+                            eraser_mask_inv=eraser_mask_inv,
+                            eraser_ht=eraser_ht,
+                            eraser_wd=eraser_wd,
+                            text_config=text_config
+                        )
+                    elif text_animation_type == 'word_by_word':
+                        draw_word_by_word_text(
+                            variables=layer_vars,
+                            skip_rate=layer_skip_rate,
+                            mode='eraser',
+                            eraser=eraser,
+                            eraser_mask_inv=eraser_mask_inv,
+                            eraser_ht=eraser_ht,
+                            eraser_wd=eraser_wd,
+                            text_config=text_config
+                        )
+                    elif text_animation_type == 'svg_path' or text_config.get('use_svg_paths', False):
                         draw_svg_path_handwriting(
                             variables=layer_vars,
                             skip_rate=layer_skip_rate,
@@ -2122,7 +2550,7 @@ def draw_layered_whiteboard_animations(
                             text_config=text_config
                         )
                     else:
-                        # Use column-based drawing (non-SVG approach)
+                        # Default: column-based handwriting
                         draw_text_handwriting(
                             variables=layer_vars,
                             skip_rate=layer_skip_rate,
@@ -2146,12 +2574,29 @@ def draw_layered_whiteboard_animations(
                 # Mode normal: dessiner avec la main
                 # Use text-specific drawing for text layers, tile-based for images
                 if layer_type == 'text':
-                    print(f"    ✍️  Mode handwriting (text)")
                     text_config = layer.get('text_config', {})
-                    # Check if user explicitly wants SVG path-based drawing
-                    use_svg_paths = text_config.get('use_svg_paths', False)
                     
-                    if use_svg_paths:
+                    # Check animation type for text
+                    text_animation_type = text_config.get('animation_type', 'handwriting')
+                    
+                    if text_animation_type == 'character_by_character':
+                        print(f"    ✍️  Mode character-by-character (text)")
+                        draw_character_by_character_text(
+                            variables=layer_vars,
+                            skip_rate=layer_skip_rate,
+                            mode='draw',
+                            text_config=text_config
+                        )
+                    elif text_animation_type == 'word_by_word':
+                        print(f"    ✍️  Mode word-by-word (text)")
+                        draw_word_by_word_text(
+                            variables=layer_vars,
+                            skip_rate=layer_skip_rate,
+                            mode='draw',
+                            text_config=text_config
+                        )
+                    elif text_animation_type == 'svg_path' or text_config.get('use_svg_paths', False):
+                        print(f"    ✍️  Mode handwriting (SVG path-based)")
                         # Use SVG path-based drawing (opt-in)
                         draw_svg_path_handwriting(
                             variables=layer_vars,
@@ -2160,7 +2605,8 @@ def draw_layered_whiteboard_animations(
                             text_config=text_config
                         )
                     else:
-                        # Use column-based drawing by default (non-SVG approach)
+                        # Default: column-based handwriting
+                        print(f"    ✍️  Mode handwriting (text)")
                         draw_text_handwriting(
                             variables=layer_vars,
                             skip_rate=layer_skip_rate,
