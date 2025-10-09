@@ -3222,24 +3222,24 @@ def draw_layered_whiteboard_animations(
                 
                 # Update drawn_frame to final position
                 variables.drawn_frame = anim_frame.copy()
-            
-            # Final blend of layer (no entrance animation or after animation completes)
-            if opacity < 1.0:
-                # Blend only the layer's pixels
-                # Where layer has content: blend old background with new layer content
-                # Where layer has no content: keep the old frame unchanged
-                layer_content = layer_vars.drawn_frame * layer_mask_3d
-                old_background = variables.drawn_frame * layer_mask_3d
-                blended_layer = cv2.addWeighted(old_background, 1 - opacity, layer_content, opacity, 0)
-                
-                # Combine: blended layer where mask=1, old frame where mask=0
-                variables.drawn_frame = (layer_mask_3d * blended_layer + 
-                                        (1 - layer_mask_3d) * variables.drawn_frame).astype(np.uint8)
             else:
-                # No opacity blending, just overlay the layer where it has content
-                variables.drawn_frame = np.where(layer_mask_3d > 0, 
-                                                layer_vars.drawn_frame, 
-                                                variables.drawn_frame).astype(np.uint8)
+                # Final blend of layer (only when path animation is NOT used)
+                if opacity < 1.0:
+                    # Blend only the layer's pixels
+                    # Where layer has content: blend old background with new layer content
+                    # Where layer has no content: keep the old frame unchanged
+                    layer_content = layer_vars.drawn_frame * layer_mask_3d
+                    old_background = variables.drawn_frame * layer_mask_3d
+                    blended_layer = cv2.addWeighted(old_background, 1 - opacity, layer_content, opacity, 0)
+                    
+                    # Combine: blended layer where mask=1, old frame where mask=0
+                    variables.drawn_frame = (layer_mask_3d * blended_layer + 
+                                            (1 - layer_mask_3d) * variables.drawn_frame).astype(np.uint8)
+                else:
+                    # No opacity blending, just overlay the layer where it has content
+                    variables.drawn_frame = np.where(layer_mask_3d > 0, 
+                                                    layer_vars.drawn_frame, 
+                                                    variables.drawn_frame).astype(np.uint8)
             
             # Apply exit animation after layer is complete (if this is the last layer or configured)
             if exit_anim and exit_anim.get('type') != 'none':
