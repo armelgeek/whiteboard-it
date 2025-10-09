@@ -25,6 +25,19 @@ Application de création d'animations de type "dessin sur tableau blanc" (whiteb
 - ✅ Support de plusieurs formats d'image
 - ✅ Animation avec main réaliste
 
+### 🆕 Export Formats Avancés (NOUVEAU!)
+
+Exportez vos animations vers multiples formats pour différents usages:
+
+- **GIF animé** - Format universel pour le web et réseaux sociaux
+- **WebM** - Codec VP9 moderne, meilleure compression
+- **PNG Sequence** - Frames individuels pour post-production
+- **Transparence** - WebM avec canal alpha pour overlays
+- **Lossless** - Qualité parfaite sans perte (FFV1)
+- **9 Presets Médias Sociaux** - YouTube, TikTok, Instagram, Facebook, Twitter, LinkedIn
+
+Voir [EXPORT_FORMATS_GUIDE.md](EXPORT_FORMATS_GUIDE.md) pour la documentation complète.
+
 ### 🆕 Performance & Optimisation (NOUVEAU!)
 
 Optimisez vos rendus avec ces fonctionnalités avancées:
@@ -130,6 +143,67 @@ python whiteboard_animator.py image.png \
 ```
 
 ### Export des données d'animation (JSON)
+
+```bash
+# Générer une vidéo et exporter les données JSON
+python whiteboard_animator.py image.png --export-json
+# Plusieurs images avec export JSON (génère un fichier JSON par image)
+python whiteboard_animator.py image1.png image2.png image3.png --export-json
+```
+
+**Note:** L'option `--export-json` génère un fichier JSON contenant toutes les données de l'animation (positions, timing, frames), permettant de réutiliser ou analyser la séquence de dessin.
+
+### Export formats avancés (NOUVEAU)
+
+```bash
+# Export en GIF animé pour le web
+python whiteboard_animator.py image.png --export-formats gif
+
+# Export multiple formats (GIF + WebM)
+python whiteboard_animator.py image.png --export-formats gif webm
+
+# Export séquence PNG pour post-production
+python whiteboard_animator.py image.png --export-formats png
+
+# Export avec transparence (WebM alpha channel)
+python whiteboard_animator.py image.png --export-formats webm-alpha
+
+# Export sans perte pour archivage
+python whiteboard_animator.py image.png --export-formats lossless
+
+# Tous les formats à la fois
+python whiteboard_animator.py image.png --export-formats gif webm png lossless
+```
+
+### Presets médias sociaux (NOUVEAU)
+
+```bash
+# Lister tous les presets disponibles
+python whiteboard_animator.py --list-presets
+
+# TikTok (vertical 9:16, 1080x1920)
+python whiteboard_animator.py image.png --social-preset tiktok
+
+# YouTube standard (16:9, 1920x1080)
+python whiteboard_animator.py image.png --social-preset youtube
+
+# YouTube Shorts (vertical 9:16, 1080x1920)
+python whiteboard_animator.py image.png --social-preset youtube-shorts
+
+# Instagram Reels (vertical 9:16, 1080x1920)
+python whiteboard_animator.py image.png --social-preset instagram-reel
+
+# Instagram Feed (carré 1:1, 1080x1080)
+python whiteboard_animator.py image.png --social-preset instagram-feed
+
+# Facebook (16:9, 1280x720)
+python whiteboard_animator.py image.png --social-preset facebook
+
+# Combiner preset avec exports multiples
+python whiteboard_animator.py image.png --social-preset tiktok --export-formats gif webm
+```
+
+Presets disponibles: `youtube`, `youtube-shorts`, `tiktok`, `instagram-feed`, `instagram-story`, `instagram-reel`, `facebook`, `twitter`, `linkedin`
 
 ```bash
 # Générer vidéo + données JSON (une image)
