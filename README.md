@@ -5,6 +5,7 @@ Application de création d'animations de type "dessin sur tableau blanc" (whiteb
 ## Fonctionnalités
 
 - ✅ Génération de vidéos d'animation de dessin à partir d'images
+- ✅ **🆕 Support Audio Complet** - Musique de fond, effets sonores, voix off, sons auto-générés (NOUVEAU!)
 - ✅ **🆕 Performance & Optimisation** - Preview mode, checkpoints, batch processing, memory optimization
 - ✅ **🆕 Timeline et Synchronisation Avancée** - Système complet de timeline avec keyframes, markers, sync points (NOUVEAU!)
 - ✅ **🆕 Formes géométriques** - Cercles, rectangles, triangles, polygones, lignes, flèches
@@ -24,6 +25,31 @@ Application de création d'animations de type "dessin sur tableau blanc" (whiteb
 - ✅ Export JSON des données d'animation
 - ✅ Support de plusieurs formats d'image
 - ✅ Animation avec main réaliste
+
+### 🆕 Support Audio (NOUVEAU!)
+
+Créez des vidéos professionnelles avec audio complet:
+
+- **Musique de fond** - Avec boucle, fade-in/fade-out, contrôle de volume
+- **Effets sonores** - Synchronisés précisément avec les animations
+- **Voix off** - Narration professionnelle avec timing exact
+- **Sons de machine à écrire** - Auto-générés pour animations de texte
+- **Sons de dessin** - Auto-générés pour animations de tracé
+- **Mixage multi-pistes** - Combinaison automatique de toutes les sources audio
+- **Contrôle de volume** - Volume individuel par élément audio
+
+```bash
+# Exemple rapide avec musique de fond
+python whiteboard_animator.py image.jpg --background-music music.mp3
+
+# Activer les sons auto-générés
+python whiteboard_animator.py image.jpg --enable-drawing-sound --enable-typewriter-sound
+
+# Configuration complète
+python whiteboard_animator.py --config slides.json --audio-config audio.json
+```
+
+**Voir**: [AUDIO_GUIDE.md](AUDIO_GUIDE.md) pour la documentation complète!
 
 ### 🆕 Export Formats Avancés (NOUVEAU!)
 
@@ -78,11 +104,16 @@ pip install opencv-python numpy pillow
 
 # Requis pour la conversion H.264 et la concaténation de vidéos multiples
 pip install av
+
+# Optionnel: Support audio (musique, effets sonores, voix off)
+pip install pydub
 ```
 
 **Note:** 
 - Le module `av` (PyAV) est fortement recommandé pour la conversion H.264 et la combinaison de vidéos
 - Le module `pillow` est requis pour les couches de texte dynamiques
+- Le module `pydub` est optionnel mais recommandé pour le support audio complet
+- FFmpeg doit être installé sur votre système (généralement déjà présent)
 
 ## Utilisation
 
