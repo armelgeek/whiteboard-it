@@ -5,6 +5,7 @@ Application de création d'animations de type "dessin sur tableau blanc" (whiteb
 ## Fonctionnalités
 
 - ✅ Génération de vidéos d'animation de dessin à partir d'images
+- ✅ **🆕 Animation "Hand Push"** - Main poussant des éléments vers leur position (NOUVEAU!)
 - ✅ **🆕 Couches de texte dynamiques** - Texte généré à la volée avec animation handwriting (NOUVEAU!)
 - ✅ **🆕 Système de caméra avancé** - Séquences de caméras multiples avec transitions fluides (NOUVEAU!)
 - ✅ **Contrôles de caméra** - Zoom et focus sur des zones spécifiques

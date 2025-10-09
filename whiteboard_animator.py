@@ -1018,6 +1018,90 @@ def draw_eraser_on_img(
     return drawing
 
 
+def apply_push_animation_with_hand(frame, animation_config, frame_index, total_frames, frame_rate, hand, hand_mask_inv, hand_ht, hand_wd):
+    """Apply push animation with hand overlay to a frame.
+    
+    Args:
+        frame: The frame to animate (numpy array)
+        animation_config: Dict with animation parameters (type, duration, etc.)
+        frame_index: Current frame index in the animation
+        total_frames: Total number of frames in the animation
+        frame_rate: Frame rate of the video
+        hand: Hand image (numpy array)
+        hand_mask_inv: Inverted hand mask (numpy array)
+        hand_ht: Hand height
+        hand_wd: Hand width
+        
+    Returns:
+        Animated frame with hand overlay
+    """
+    if not animation_config or not animation_config.get('type', '').startswith('push_from_'):
+        return frame
+    
+    anim_type = animation_config.get('type', 'push_from_left')
+    direction = anim_type.replace('push_from_', '')
+    duration = animation_config.get('duration', 1.0)
+    anim_frames = int(duration * frame_rate)
+    
+    if frame_index >= anim_frames:
+        return frame
+    
+    progress = frame_index / anim_frames
+    h, w = frame.shape[:2]
+    result = np.ones_like(frame) * 255
+    
+    # Calculate object position based on progress
+    if direction == 'left':
+        # Push from left side
+        offset = int(w * (1 - progress))
+        if offset < w:
+            result[:, offset:] = frame[:, :w-offset]
+        # Position hand at the left edge of the object
+        hand_x = max(0, offset - int(hand_wd * 0.3))
+        hand_y = int(h / 2 - hand_ht / 2)
+    elif direction == 'right':
+        # Push from right side
+        offset = int(w * (1 - progress))
+        if offset < w:
+            result[:, :w-offset] = frame[:, offset:]
+        # Position hand at the right edge of the object
+        hand_x = min(w - hand_wd, w - offset)
+        hand_y = int(h / 2 - hand_ht / 2)
+    elif direction == 'top':
+        # Push from top
+        offset = int(h * (1 - progress))
+        if offset < h:
+            result[offset:, :] = frame[:h-offset, :]
+        # Position hand at the top edge of the object
+        hand_x = int(w / 2 - hand_wd / 2)
+        hand_y = max(0, offset - int(hand_ht * 0.3))
+    elif direction == 'bottom':
+        # Push from bottom
+        offset = int(h * (1 - progress))
+        if offset < h:
+            result[:h-offset, :] = frame[offset:, :]
+        # Position hand at the bottom edge of the object
+        hand_x = int(w / 2 - hand_wd / 2)
+        hand_y = min(h - hand_ht, h - offset)
+    else:
+        # Default to left if direction not recognized
+        offset = int(w * (1 - progress))
+        if offset < w:
+            result[:, offset:] = frame[:, :w-offset]
+        hand_x = max(0, offset - int(hand_wd * 0.3))
+        hand_y = int(h / 2 - hand_ht / 2)
+    
+    # Draw hand on the result frame
+    if hand is not None and hand_mask_inv is not None:
+        result = draw_hand_on_img(
+            result, hand, hand_x, hand_y,
+            hand_mask_inv, hand_ht, hand_wd,
+            h, w
+        )
+    
+    return result
+
+
 def apply_entrance_animation(frame, animation_config, frame_index, total_frames, frame_rate):
     """Apply entrance animation to a frame.
     
@@ -1095,6 +1179,41 @@ def apply_entrance_animation(frame, animation_config, frame_index, total_frames,
         y_offset = (h - new_h) // 2
         x_offset = (w - new_w) // 2
         result[y_offset:y_offset+new_h, x_offset:x_offset+new_w] = resized
+        return result
+    
+    elif anim_type.startswith('push_'):
+        # Push animation - element slides in with hand visible
+        # Direction can be: push_from_left, push_from_right, push_from_top, push_from_bottom
+        direction = anim_type.replace('push_from_', '')
+        h, w = frame.shape[:2]
+        result = np.ones_like(frame) * 255
+        
+        if direction == 'left':
+            # Push from left side
+            offset = int(w * (1 - progress))
+            if offset < w:
+                result[:, offset:] = frame[:, :w-offset]
+        elif direction == 'right':
+            # Push from right side
+            offset = int(w * (1 - progress))
+            if offset < w:
+                result[:, :w-offset] = frame[:, offset:]
+        elif direction == 'top':
+            # Push from top
+            offset = int(h * (1 - progress))
+            if offset < h:
+                result[offset:, :] = frame[:h-offset, :]
+        elif direction == 'bottom':
+            # Push from bottom
+            offset = int(h * (1 - progress))
+            if offset < h:
+                result[:h-offset, :] = frame[offset:, :]
+        else:
+            # Default to left if direction not recognized
+            offset = int(w * (1 - progress))
+            if offset < w:
+                result[:, offset:] = frame[:, :w-offset]
+        
         return result
     
     return frame
@@ -2062,19 +2181,37 @@ def draw_layered_whiteboard_animations(
                 entrance_duration = entrance_anim.get('duration', 0.5)
                 entrance_frames = int(entrance_duration * variables.frame_rate)
                 
+                # Check if this is a push animation
+                is_push_animation = entrance_anim.get('type', '').startswith('push_from_')
+                
                 # Generate entrance animation frames
                 for frame_idx in range(entrance_frames):
                     # Start with current state
                     anim_frame = variables.drawn_frame.copy()
                     
                     # Apply entrance animation to the new layer content
-                    layer_animated = apply_entrance_animation(
-                        layer_vars.drawn_frame,
-                        entrance_anim,
-                        frame_idx,
-                        entrance_frames,
-                        variables.frame_rate
-                    )
+                    if is_push_animation:
+                        # Use push animation with hand overlay
+                        layer_animated = apply_push_animation_with_hand(
+                            layer_vars.drawn_frame,
+                            entrance_anim,
+                            frame_idx,
+                            entrance_frames,
+                            variables.frame_rate,
+                            hand.copy(),
+                            hand_mask_inv.copy(),
+                            hand_ht,
+                            hand_wd
+                        )
+                    else:
+                        # Use standard entrance animation
+                        layer_animated = apply_entrance_animation(
+                            layer_vars.drawn_frame,
+                            entrance_anim,
+                            frame_idx,
+                            entrance_frames,
+                            variables.frame_rate
+                        )
                     
                     # Blend animated layer with current frame
                     if opacity < 1.0:
