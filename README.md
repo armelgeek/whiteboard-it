@@ -6,6 +6,7 @@ Application de création d'animations de type "dessin sur tableau blanc" (whiteb
 
 - ✅ Génération de vidéos d'animation de dessin à partir d'images
 - ✅ **🆕 Couches de texte dynamiques** - Texte généré à la volée avec animation handwriting (NOUVEAU!)
+- ✅ **🆕 Système de caméra avancé** - Séquences de caméras multiples avec transitions fluides (NOUVEAU!)
 - ✅ **Contrôles de caméra** - Zoom et focus sur des zones spécifiques
 - ✅ **Animations avancées** - Effets de zoom-in/zoom-out post-dessin
 - ✅ **Gomme intelligente** - Effet d'effacement naturel pour les couches superposées
@@ -201,7 +202,7 @@ Voir [CONFIG_FORMAT.md](CONFIG_FORMAT.md) pour la documentation complète du for
 
 Whiteboard-It supporte maintenant des contrôles de caméra cinématiques et des effets d'animation avancés pour créer des vidéos plus dynamiques.
 
-### Contrôles de caméra
+### Contrôles de caméra (par couche)
 
 Zoomez et focalisez sur des zones spécifiques de vos couches :
 
@@ -225,6 +226,58 @@ Zoomez et focalisez sur des zones spécifiques de vos couches :
   ]
 }
 ```
+
+### Système de caméra avancé - Séquences multiples (NOUVEAU! 🎥)
+
+Créez des mouvements de caméra cinématiques avec plusieurs caméras et des transitions fluides :
+
+```json
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 15,
+      "layers": [
+        {
+          "image_path": "diagram.png",
+          "z_index": 1,
+          "skip_rate": 10
+        }
+      ],
+      "cameras": [
+        {
+          "zoom": 1.0,
+          "position": {"x": 0.5, "y": 0.5},
+          "duration": 2.5
+        },
+        {
+          "zoom": 1.8,
+          "position": {"x": 0.3, "y": 0.25},
+          "duration": 2.5,
+          "transition_duration": 1.0,
+          "easing": "ease_out"
+        },
+        {
+          "zoom": 1.0,
+          "position": {"x": 0.5, "y": 0.5},
+          "duration": 1.5,
+          "transition_duration": 1.0,
+          "easing": "ease_out"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Caractéristiques du système de caméra avancé:**
+- ✨ Plusieurs caméras par slide avec durées individuelles
+- 🎬 Transitions fluides entre caméras avec fonctions d'easing
+- 📐 Taille de caméra personnalisable (ex: 2275x1280)
+- 🎯 Contrôle précis du zoom et de la position
+- ⚙️ Fonctions d'easing: `linear`, `ease_in`, `ease_out`, `ease_in_out`, `ease_in_cubic`, `ease_out_cubic`
+
+📖 **Documentation complète**: [ADVANCED_CAMERA_GUIDE.md](ADVANCED_CAMERA_GUIDE.md)
 
 ### Animations post-dessin
 

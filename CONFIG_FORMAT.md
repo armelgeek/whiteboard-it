@@ -105,6 +105,7 @@ Permet de définir des paramètres spécifiques pour chaque slide.
 | `duration` | int/float | **Durée TOTALE de la slide en secondes** (inclut l'animation + temps d'affichage final). Si l'animation dépasse cette durée, seule l'animation sera utilisée. | Valeur globale `--duration` |
 | `skip_rate` | int | Vitesse de dessin (plus grand = plus rapide) | Valeur globale `--skip-rate` |
 | `layers` | array | Liste des couches d'images superposées (optionnel) | null |
+| `cameras` | array | Séquence de caméras avec transitions (système de caméra avancé) | null |
 
 ### Exemple
 
@@ -646,6 +647,75 @@ Dans cet exemple :
 - Après le dessin, un effet de zoom progressif est appliqué
 - Le zoom passe de 1.5x à 2.0x sur 1.5 secondes
 - Le focus se déplace vers la position (0.7, 0.4) pendant le zoom
+
+### Cas 7 : Système de caméra avancé avec séquences multiples
+
+```json
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 15,
+      "layers": [
+        {
+          "image_path": "examples/complex_diagram.png",
+          "position": {"x": 0, "y": 0},
+          "z_index": 1,
+          "skip_rate": 10
+        }
+      ],
+      "cameras": [
+        {
+          "zoom": 1.0,
+          "position": {"x": 0.5, "y": 0.5},
+          "duration": 2.5
+        },
+        {
+          "zoom": 1.8,
+          "position": {"x": 0.3, "y": 0.25},
+          "duration": 2.5,
+          "transition_duration": 1.0,
+          "easing": "ease_out"
+        },
+        {
+          "zoom": 1.8,
+          "position": {"x": 0.7, "y": 0.75},
+          "duration": 2.5,
+          "transition_duration": 1.2,
+          "easing": "ease_out"
+        },
+        {
+          "zoom": 1.0,
+          "position": {"x": 0.5, "y": 0.5},
+          "duration": 1.5,
+          "transition_duration": 1.0,
+          "easing": "ease_out"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Dans cet exemple :
+- La slide utilise le **système de caméra avancé** avec 4 caméras
+- Chaque caméra a sa propre durée d'affichage (duration)
+- Les transitions entre caméras sont fluides avec fonction d'easing
+- Camera 1: Vue d'ensemble pendant 2.5s
+- Camera 2: Zoom sur le coin supérieur gauche avec transition de 1s
+- Camera 3: Pan vers le coin inférieur droit avec transition de 1.2s
+- Camera 4: Retour à la vue d'ensemble avec transition de 1s
+- Les fonctions d'easing ("ease_out") rendent les mouvements plus naturels
+
+**Propriétés des caméras:**
+- `zoom`: Niveau de zoom (1.0 = normal, 2.0 = zoom x2)
+- `position`: Position focale avec x, y (0.0-1.0, 0.5 = centre)
+- `size`: Taille optionnelle de la caméra (ex: `{"width": 2275, "height": 1280}`)
+- `duration`: Durée d'affichage de cette caméra en secondes
+- `transition_duration`: Durée de transition depuis la caméra précédente (défaut: 0)
+- `easing`: Type de transition: "linear", "ease_in", "ease_out", "ease_in_out", "ease_in_cubic", "ease_out_cubic" (défaut: "ease_out")
+
+📖 **Pour plus de détails**, voir [ADVANCED_CAMERA_GUIDE.md](ADVANCED_CAMERA_GUIDE.md)
 
 ## Notes importantes
 
