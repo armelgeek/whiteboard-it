@@ -15,6 +15,12 @@ The geometric shapes feature allows you to create and animate vector-based shape
 ### Lines and Arrows
 5. **Line** - Straight lines between two points
 6. **Arrow** - Arrows with customizable arrowhead size
+7. **Curved Arrow** - Arrows that follow bezier curves (quadratic or cubic)
+
+### Special Shapes
+8. **Brace** - Curly braces/accolades (left, right, top, bottom orientations)
+9. **Sketchy Rectangle** - Hand-drawn looking rectangles with organic variations
+10. **Sketchy Circle** - Hand-drawn looking circles with organic variations
 
 ## Shape Configuration
 
@@ -44,7 +50,7 @@ Shapes are defined as layers with `type: "shape"` and a `shape_config` object:
 All shapes support these properties:
 
 - **shape**: The shape type (required)
-  - Options: `"circle"`, `"rectangle"`, `"triangle"`, `"polygon"`, `"line"`, `"arrow"`
+  - Options: `"circle"`, `"rectangle"`, `"triangle"`, `"polygon"`, `"line"`, `"arrow"`, `"curved_arrow"`, `"brace"`, `"sketchy_rectangle"`, `"sketchy_circle"`
   
 - **color**: Stroke/outline color (default: black)
   - RGB tuple: `[255, 0, 0]` or `(255, 0, 0)`
@@ -131,6 +137,70 @@ Creates a custom polygon by connecting the specified points.
   "arrow_size": 30                   // Arrow head size (default: 20)
 }
 ```
+
+#### Curved Arrow
+
+```json
+{
+  "shape": "curved_arrow",
+  "curve_type": "quadratic",         // "quadratic" (3 points) or "cubic" (4 points)
+  "points": [                        // Bezier control points
+    [100, 400],                      // Start point
+    [400, 100],                      // Control point(s)
+    [700, 400]                       // End point (+ optional 4th control point for cubic)
+  ],
+  "arrow_size": 30,                  // Arrow head size (default: 20)
+  "num_segments": 50                 // Curve smoothness (default: 50)
+}
+```
+
+**Quadratic Bezier** (3 points): Simple arc with one control point
+**Cubic Bezier** (4 points): S-curve with two control points for more complex curves
+
+#### Brace
+
+```json
+{
+  "shape": "brace",
+  "orientation": "left",             // "left", "right", "top", or "bottom"
+  "position": {"x": 400, "y": 300},
+  "width": 30,                       // Width of the brace
+  "height": 200,                     // Height of the brace
+  "tip_size": 10                     // Size of middle tip (optional, default: width * 0.3)
+}
+```
+
+Creates curly braces/accolades for grouping or highlighting content. Perfect for mathematical notation or grouping related elements.
+
+#### Sketchy Rectangle
+
+```json
+{
+  "shape": "sketchy_rectangle",
+  "position": {"x": 400, "y": 300},
+  "width": 300,
+  "height": 200,
+  "roughness": 3,                    // Amount of hand-drawn variation (default: 2)
+  "iterations": 3                    // Number of overlapping strokes (default: 3)
+}
+```
+
+Creates a hand-drawn looking rectangle with organic, imperfect lines. Great for highlighting or framing content with a casual, sketched appearance.
+
+#### Sketchy Circle
+
+```json
+{
+  "shape": "sketchy_circle",
+  "position": {"x": 400, "y": 300},
+  "size": 120,                       // Radius
+  "roughness": 3,                    // Amount of hand-drawn variation (default: 2)
+  "iterations": 3                    // Number of overlapping strokes (default: 3)
+}
+```
+
+Creates a hand-drawn looking circle with organic variations. Perfect for circling important elements or creating organic, natural-looking highlights.
+
 
 ## Animation Support
 
@@ -416,9 +486,93 @@ python whiteboard_animator.py --config example_shapes_config.json
 
 The output video will be saved in the `save_videos` directory.
 
+## Example 4: New Shapes Showcase
+
+```json
+{
+  "slides": [
+    {
+      "index": 0,
+      "duration": 15,
+      "layers": [
+        {
+          "type": "shape",
+          "shape_config": {
+            "shape": "curved_arrow",
+            "color": "#FF0000",
+            "fill_color": "#FFAAAA",
+            "stroke_width": 4,
+            "curve_type": "quadratic",
+            "points": [[100, 400], [400, 100], [700, 400]],
+            "arrow_size": 35
+          },
+          "z_index": 1,
+          "skip_rate": 8,
+          "mode": "draw"
+        },
+        {
+          "type": "shape",
+          "shape_config": {
+            "shape": "brace",
+            "color": "#000000",
+            "stroke_width": 3,
+            "orientation": "left",
+            "position": {"x": 200, "y": 600},
+            "width": 40,
+            "height": 200
+          },
+          "z_index": 2,
+          "skip_rate": 10,
+          "mode": "draw"
+        },
+        {
+          "type": "shape",
+          "shape_config": {
+            "shape": "sketchy_rectangle",
+            "color": "#0000FF",
+            "stroke_width": 2,
+            "position": {"x": 1000, "y": 300},
+            "width": 300,
+            "height": 150,
+            "roughness": 3,
+            "iterations": 3
+          },
+          "z_index": 3,
+          "skip_rate": 8,
+          "mode": "draw"
+        },
+        {
+          "type": "shape",
+          "shape_config": {
+            "shape": "sketchy_circle",
+            "color": "#FF00FF",
+            "stroke_width": 2,
+            "position": {"x": 600, "y": 700},
+            "size": 100,
+            "roughness": 4,
+            "iterations": 3
+          },
+          "z_index": 4,
+          "skip_rate": 10,
+          "mode": "draw"
+        }
+      ]
+    }
+  ]
+}
+```
+
+This example demonstrates:
+- **Curved Arrow**: A smooth arc using quadratic bezier
+- **Brace**: A left-facing curly brace for grouping
+- **Sketchy Rectangle**: Hand-drawn style rectangle for highlighting
+- **Sketchy Circle**: Organic circle for emphasis
+
 ## See Also
 
 - `example_shapes_config.json` - Complete working example
 - `test_shapes.py` - Test script demonstrating all shape types
+- `test_new_shapes.py` - Test script for curved arrows, braces, and sketchy shapes
+- `new_shapes_showcase.png` - Visual showcase of all new shape types
 - `CONFIG_FORMAT.md` - Full configuration reference
 - `LAYERS_GUIDE.md` - Layer system documentation

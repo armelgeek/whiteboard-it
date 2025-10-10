@@ -26,6 +26,10 @@ This implementation adds comprehensive support for geometric shapes to the White
    - **Polygon**: Custom shapes with any number of points
    - **Line**: Straight lines between two points
    - **Arrow**: Lines with customizable arrowheads
+   - **Curved Arrow**: Bezier curve-based arrows (quadratic or cubic)
+   - **Brace**: Curly braces/accolades for grouping (4 orientations)
+   - **Sketchy Rectangle**: Hand-drawn style rectangles with organic variations
+   - **Sketchy Circle**: Hand-drawn style circles with organic variations
 
 4. **Styling Options**
    - **Color**: Stroke/outline color (RGB or hex)
@@ -71,6 +75,15 @@ The implementation integrates seamlessly at these points:
 - ✅ Line rendering
 - ✅ Hex color support
 - **Result**: 7/7 tests passing
+
+### Unit Tests for New Shapes (`test_new_shapes.py`)
+- ✅ Curved arrow (quadratic bezier)
+- ✅ Curved arrow (cubic bezier)
+- ✅ Brace (left, right, top, bottom orientations)
+- ✅ Sketchy rectangle
+- ✅ Sketchy circle
+- ✅ Combined scene with multiple new shapes
+- **Result**: 9/9 tests passing
 
 ### Integration Tests
 - ✅ Simple shapes config (test_shapes_simple.json)
@@ -171,6 +184,55 @@ The implementation integrates seamlessly at these points:
 }
 ```
 
+### Curved Arrow (Quadratic Bezier)
+```json
+{
+  "type": "shape",
+  "shape_config": {
+    "shape": "curved_arrow",
+    "color": "#FF0000",
+    "fill_color": "#FFAAAA",
+    "stroke_width": 4,
+    "curve_type": "quadratic",
+    "points": [[100, 400], [400, 100], [700, 400]],
+    "arrow_size": 35
+  }
+}
+```
+
+### Brace for Grouping
+```json
+{
+  "type": "shape",
+  "shape_config": {
+    "shape": "brace",
+    "color": "#000000",
+    "stroke_width": 3,
+    "orientation": "left",
+    "position": {"x": 200, "y": 500},
+    "width": 40,
+    "height": 250
+  }
+}
+```
+
+### Sketchy Rectangle (Hand-Drawn)
+```json
+{
+  "type": "shape",
+  "shape_config": {
+    "shape": "sketchy_rectangle",
+    "color": "#0000FF",
+    "stroke_width": 2,
+    "position": {"x": 400, "y": 300},
+    "width": 300,
+    "height": 200,
+    "roughness": 3,
+    "iterations": 3
+  }
+}
+```
+
 ## Performance
 
 - Shapes render instantly (< 1ms per shape)
@@ -187,9 +249,12 @@ The implementation integrates seamlessly at these points:
 
 ## Feature Completion Status
 
-### Implemented (80%)
+### Implemented (90%)
 - ✅ Basic shapes (circle, rectangle, triangle, polygon)
 - ✅ Lines and arrows
+- ✅ Curved arrows (quadratic and cubic bezier)
+- ✅ Braces/accolades (4 orientations)
+- ✅ Hand-drawn/sketchy shapes (rectangle, circle)
 - ✅ Drawing animation (progressive reveal)
 - ✅ Fill support (solid colors)
 - ✅ Morphing between shapes
@@ -201,7 +266,6 @@ The implementation integrates seamlessly at these points:
 ### Not Implemented (Future Enhancements)
 - ⏸️ Fill animation (progressive fill separate from stroke)
 - ⏸️ Mathematical plots (function plotting, graphs)
-- ⏸️ Bezier curves
 - ⏸️ Text on paths
 - ⏸️ Gradient fills
 - ⏸️ Pattern fills
@@ -209,12 +273,14 @@ The implementation integrates seamlessly at these points:
 ### Estimated Effort for Remaining Features
 - Fill animation: 1-2 days
 - Mathematical plots: 2-3 days
-- Bezier curves: 1-2 days
+- Text on paths: 1-2 days
 
 ## Known Limitations
 
 1. **Fill Animation**: Fills are applied instantly, not progressively animated separately from stroke
 2. **Mathematical Functions**: No built-in support for plotting mathematical functions (can be done with custom polygons)
+3. **Text on Path**: Cannot place text along a curved path
+4. **Sketchy Shapes**: Use randomness which means each render will be slightly different
 3. **Curved Lines**: Only straight lines supported (no bezier curves)
 4. **Text on Path**: Cannot place text along a curved path
 

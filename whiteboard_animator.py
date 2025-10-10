@@ -378,16 +378,25 @@ def render_shape_to_image(shape_config, target_width, target_height):
     
     Args:
         shape_config: Dictionary with shape configuration:
-            - shape: Shape type ("circle", "rectangle", "triangle", "polygon", "line", "arrow")
+            - shape: Shape type ("circle", "rectangle", "triangle", "polygon", "line", "arrow",
+                     "curved_arrow", "brace", "sketchy_rectangle", "sketchy_circle")
             - color: Shape color as RGB tuple or hex string (default: (0, 0, 0) black)
             - fill_color: Fill color as RGB tuple or hex string (default: None - no fill)
             - stroke_width: Line thickness in pixels (default: 2)
             - position: Dict with x, y for shape center/start (default: canvas center)
             - size: Size parameter (radius for circle, width/height for rectangle, etc.)
-            - points: List of points for polygon [[x1, y1], [x2, y2], ...]
+            - points: List of points for polygon [[x1, y1], [x2, y2], ...] or curved_arrow bezier points
             - start: Start point for line/arrow [x, y]
             - end: End point for line/arrow [x, y]
-            - arrow_size: Arrow head size for arrow type (default: 20)
+            - arrow_size: Arrow head size for arrow/curved_arrow type (default: 20)
+            - curve_type: For curved_arrow - "quadratic" (3 points) or "cubic" (4 points)
+            - num_segments: For curved_arrow - smoothness of curve (default: 50)
+            - orientation: For brace - "left", "right", "top", "bottom" (default: "left")
+            - width: Width for rectangle/brace/sketchy shapes
+            - height: Height for rectangle/brace/sketchy shapes
+            - tip_size: For brace - size of middle tip (default: width * 0.3)
+            - roughness: For sketchy shapes - amount of hand-drawn variation (default: 2)
+            - iterations: For sketchy shapes - number of overlapping strokes (default: 3)
         target_width: Canvas width
         target_height: Canvas height
         
@@ -507,6 +516,221 @@ def render_shape_to_image(shape_config, target_width, target_height):
         
         # Draw main line (shaft) AFTER head
         cv2.line(img, pt1, pt2, color, stroke_width)
+    
+    elif shape_type == 'curved_arrow':
+        # Curved arrow using bezier curve
+        points = shape_config.get('points', [])
+        arrow_size = shape_config.get('arrow_size', 20)
+        curve_type = shape_config.get('curve_type', 'quadratic')  # 'quadratic' or 'cubic'
+        num_segments = shape_config.get('num_segments', 50)  # Number of line segments for curve
+        
+        if curve_type == 'cubic' and len(points) >= 4:
+            # Cubic bezier: needs 4 points
+            p0, p1, p2, p3 = points[0], points[1], points[2], points[3]
+            
+            # Draw curve as series of small line segments
+            prev_pt = None
+            for i in range(num_segments + 1):
+                t = i / num_segments
+                pt = evaluate_bezier_cubic(p0, p1, p2, p3, t)
+                pt = (int(pt[0]), int(pt[1]))
+                if prev_pt is not None:
+                    cv2.line(img, prev_pt, pt, color, stroke_width)
+                prev_pt = pt
+            
+            # Calculate arrow head angle from last segment
+            t_end = 1.0
+            t_before_end = 0.98
+            pt_end = evaluate_bezier_cubic(p0, p1, p2, p3, t_end)
+            pt_before = evaluate_bezier_cubic(p0, p1, p2, p3, t_before_end)
+            angle = np.arctan2(pt_end[1] - pt_before[1], pt_end[0] - pt_before[0])
+            
+        elif len(points) >= 3:
+            # Quadratic bezier: needs 3 points
+            p0, p1, p2 = points[0], points[1], points[2]
+            
+            # Draw curve as series of small line segments
+            prev_pt = None
+            for i in range(num_segments + 1):
+                t = i / num_segments
+                pt = evaluate_bezier_quadratic(p0, p1, p2, t)
+                pt = (int(pt[0]), int(pt[1]))
+                if prev_pt is not None:
+                    cv2.line(img, prev_pt, pt, color, stroke_width)
+                prev_pt = pt
+            
+            # Calculate arrow head angle from last segment
+            t_end = 1.0
+            t_before_end = 0.98
+            pt_end = evaluate_bezier_quadratic(p0, p1, p2, t_end)
+            pt_before = evaluate_bezier_quadratic(p0, p1, p2, t_before_end)
+            angle = np.arctan2(pt_end[1] - pt_before[1], pt_end[0] - pt_before[0])
+        else:
+            return img  # Not enough points
+        
+        # Draw arrow head at the end
+        arrow_angle = np.pi / 6  # 30 degrees
+        pt2 = prev_pt  # End point of curve
+        p1 = (
+            int(pt2[0] - arrow_size * np.cos(angle - arrow_angle)),
+            int(pt2[1] - arrow_size * np.sin(angle - arrow_angle))
+        )
+        p2_arrow = (
+            int(pt2[0] - arrow_size * np.cos(angle + arrow_angle)),
+            int(pt2[1] - arrow_size * np.sin(angle + arrow_angle))
+        )
+        
+        if fill_color:
+            arrow_pts = np.array([pt2, p1, p2_arrow], np.int32)
+            arrow_pts = arrow_pts.reshape((-1, 1, 2))
+            cv2.fillPoly(img, [arrow_pts], fill_color)
+        cv2.line(img, pt2, p1, color, stroke_width)
+        cv2.line(img, pt2, p2_arrow, color, stroke_width)
+    
+    elif shape_type == 'brace':
+        # Curly brace shape
+        orientation = shape_config.get('orientation', 'left')  # 'left', 'right', 'top', 'bottom'
+        width = shape_config.get('width', size)
+        height = shape_config.get('height', size * 2)
+        tip_size = shape_config.get('tip_size', width * 0.3)  # Size of the middle tip
+        
+        # Generate brace points based on orientation
+        if orientation == 'left':
+            # Left brace: {
+            pts = [
+                [x + width, y - height/2],  # Top
+                [x + width*0.3, y - height/2],
+                [x + width*0.3, y - height*0.15],
+                [x, y],  # Middle tip
+                [x + width*0.3, y + height*0.15],
+                [x + width*0.3, y + height/2],
+                [x + width, y + height/2],  # Bottom
+            ]
+        elif orientation == 'right':
+            # Right brace: }
+            pts = [
+                [x - width, y - height/2],  # Top
+                [x - width*0.3, y - height/2],
+                [x - width*0.3, y - height*0.15],
+                [x, y],  # Middle tip
+                [x - width*0.3, y + height*0.15],
+                [x - width*0.3, y + height/2],
+                [x - width, y + height/2],  # Bottom
+            ]
+        elif orientation == 'top':
+            # Top brace (rotated)
+            pts = [
+                [x - width/2, y + height],  # Left
+                [x - width/2, y + height*0.3],
+                [x - width*0.15, y + height*0.3],
+                [x, y],  # Middle tip
+                [x + width*0.15, y + height*0.3],
+                [x + width/2, y + height*0.3],
+                [x + width/2, y + height],  # Right
+            ]
+        else:  # bottom
+            # Bottom brace (rotated)
+            pts = [
+                [x - width/2, y - height],  # Left
+                [x - width/2, y - height*0.3],
+                [x - width*0.15, y - height*0.3],
+                [x, y],  # Middle tip
+                [x + width*0.15, y - height*0.3],
+                [x + width/2, y - height*0.3],
+                [x + width/2, y - height],  # Right
+            ]
+        
+        # Convert to numpy array and draw as polyline
+        pts = np.array(pts, np.int32)
+        pts = pts.reshape((-1, 1, 2))
+        cv2.polylines(img, [pts], False, color, stroke_width)
+    
+    elif shape_type == 'sketchy_rectangle':
+        # Hand-drawn looking rectangle with multiple overlapping strokes
+        width = shape_config.get('width', size)
+        height = shape_config.get('height', size)
+        roughness = shape_config.get('roughness', 2)  # Amount of variation
+        iterations = shape_config.get('iterations', 3)  # Number of overlapping strokes
+        
+        x1_base = int(x - width / 2)
+        y1_base = int(y - height / 2)
+        x2_base = int(x + width / 2)
+        y2_base = int(y + height / 2)
+        
+        # Draw multiple slightly varied rectangles for hand-drawn effect
+        for i in range(iterations):
+            # Add random variation to each corner
+            x1 = x1_base + np.random.randint(-roughness, roughness+1)
+            y1 = y1_base + np.random.randint(-roughness, roughness+1)
+            x2 = x2_base + np.random.randint(-roughness, roughness+1)
+            y2 = y2_base + np.random.randint(-roughness, roughness+1)
+            
+            # Draw each edge as a slightly wavy line
+            top_pts = []
+            bottom_pts = []
+            left_pts = []
+            right_pts = []
+            
+            segments = 8  # Number of segments per edge
+            
+            # Top edge
+            for j in range(segments + 1):
+                t = j / segments
+                px = int(x1 + t * (x2 - x1))
+                py = y1 + np.random.randint(-roughness, roughness+1)
+                top_pts.append([px, py])
+            
+            # Bottom edge
+            for j in range(segments + 1):
+                t = j / segments
+                px = int(x1 + t * (x2 - x1))
+                py = y2 + np.random.randint(-roughness, roughness+1)
+                bottom_pts.append([px, py])
+            
+            # Left edge
+            for j in range(segments + 1):
+                t = j / segments
+                px = x1 + np.random.randint(-roughness, roughness+1)
+                py = int(y1 + t * (y2 - y1))
+                left_pts.append([px, py])
+            
+            # Right edge
+            for j in range(segments + 1):
+                t = j / segments
+                px = x2 + np.random.randint(-roughness, roughness+1)
+                py = int(y1 + t * (y2 - y1))
+                right_pts.append([px, py])
+            
+            # Draw the edges
+            for pts_list in [top_pts, bottom_pts, left_pts, right_pts]:
+                pts = np.array(pts_list, np.int32)
+                pts = pts.reshape((-1, 1, 2))
+                cv2.polylines(img, [pts], False, color, max(1, stroke_width-1))
+    
+    elif shape_type == 'sketchy_circle':
+        # Hand-drawn looking circle with multiple overlapping strokes
+        radius = int(size)
+        roughness = shape_config.get('roughness', 2)  # Amount of variation
+        iterations = shape_config.get('iterations', 3)  # Number of overlapping strokes
+        
+        # Draw multiple slightly varied circles for hand-drawn effect
+        for i in range(iterations):
+            # Generate points around a circle with random variation
+            num_points = 50
+            pts = []
+            for j in range(num_points + 1):
+                angle = 2 * np.pi * j / num_points
+                # Add random variation to radius and angle
+                r = radius + np.random.randint(-roughness, roughness+1)
+                angle_var = angle + np.random.uniform(-0.05, 0.05)
+                px = int(x + r * np.cos(angle_var))
+                py = int(y + r * np.sin(angle_var))
+                pts.append([px, py])
+            
+            # Draw the wavy circle
+            pts = np.array(pts, np.int32)
+            pts = pts.reshape((-1, 1, 2))
+            cv2.polylines(img, [pts], True, color, max(1, stroke_width-1))
     
     return img
 
